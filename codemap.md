@@ -2,9 +2,9 @@
 
 ## Repository Purpose
 
-Quarkus runtime for fraud decision evaluation and compiled ruleset execution. AUTH is latency-critical and returns immediately after evaluation (including Redis velocity checks). Durability/eventing is handled asynchronously via a background Redis Streams writer and an AUTH Kafka publisher (with ack) off the request thread; the legacy MONITORING outbox worker is optional and off by default.
+Quarkus runtime for AUTH fraud decision evaluation and compiled ruleset execution. AUTH is latency-critical and returns immediately after evaluation (including Redis velocity checks). Durability/eventing is handled asynchronously via a background Redis Streams writer and an AUTH Kafka publisher (with ack) off the request thread.
 
-Ruleset resolution uses `CARD_AUTH` for AUTH and `CARD_MONITORING` for MONITORING. Resolution is country-aware: the engine looks up `rulesetRegistry.getRuleset(countryCode, key)` with fallback to global namespace.
+Ruleset resolution uses `CARD_AUTH` for AUTH. Resolution is country-aware: the engine looks up `rulesetRegistry.getRuleset(countryCode, key)` with fallback to global namespace.
 
 AUTH evaluation order: scope bucket specificity (most specific first) -> priority -> APPROVE-first tie-breaker (ADR-0015).
 

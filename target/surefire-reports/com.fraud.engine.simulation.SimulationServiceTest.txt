@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.fraud.engine.simulation.SimulationServiceTest
 -------------------------------------------------------------------------------
-Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.582 s -- in com.fraud.engine.simulation.SimulationServiceTest
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 6.308 s -- in com.fraud.engine.simulation.SimulationServiceTest

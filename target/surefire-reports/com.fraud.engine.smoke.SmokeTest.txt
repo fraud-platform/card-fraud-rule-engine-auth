@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.fraud.engine.smoke.SmokeTest
 -------------------------------------------------------------------------------
-Tests run: 4, Failures: 0, Errors: 0, Skipped: 3, Time elapsed: 2.964 s -- in com.fraud.engine.smoke.SmokeTest
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 3, Time elapsed: 2.956 s -- in com.fraud.engine.smoke.SmokeTest
