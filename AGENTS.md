@@ -1,6 +1,8 @@
-﻿# AGENTS.md
+# AGENTS.md
 
-This is the canonical instruction file for all coding agents working in `card-fraud-rule-engine`.
+This is the canonical instruction file for all coding agents working in `card-fraud-rule-engine-auth`.
+
+**Split Info:** This repo was split from `card-fraud-rule-engine` on 2026-02-13 (baseline tag: `split-baseline-2026-02-13`). This is the AUTH-only service.
 
 - `CLAUDE.md` must stay a thin pointer to this file.
 - If any other document conflicts with this file, follow `AGENTS.md`.
