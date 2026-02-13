@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RulesetManifest.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.dto</a> &gt; <span class="el_source">RulesetManifest.java</span></div><h1>RulesetManifest.java</h1><pre class="source lang-java linenums">package com.fraud.engine.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.time.Instant;
+
+/**
+ * DTO representing the ruleset manifest stored in S3.
+ * The manifest is the runtime source-of-truth pointer for the latest version.
+ */
+<span class="fc" id="L11">public class RulesetManifest {</span>
+
+    @JsonProperty(&quot;schema_version&quot;)
+    private String schemaVersion;
+
+    @JsonProperty(&quot;environment&quot;)
+    private String environment;
+
+    @JsonProperty(&quot;region&quot;)
+    private String region;
+
+    @JsonProperty(&quot;country&quot;)
+    private String country;
+
+    @JsonProperty(&quot;ruleset_key&quot;)
+    private String rulesetKey;
+
+    @JsonProperty(&quot;ruleset_version&quot;)
+    private Integer rulesetVersion;
+
+    @JsonProperty(&quot;field_registry_version&quot;)
+    private Integer fieldRegistryVersion;
+
+    @JsonProperty(&quot;artifact_uri&quot;)
+    private String artifactUri;
+
+    @JsonProperty(&quot;checksum&quot;)
+    private String checksum;
+
+    @JsonProperty(&quot;published_at&quot;)
+    private Instant publishedAt;
+
+    public String getSchemaVersion() {
+<span class="fc" id="L44">        return schemaVersion;</span>
+    }
+
+    public String getEnvironment() {
+<span class="fc" id="L48">        return environment;</span>
+    }
+
+    public String getRegion() {
+<span class="nc" id="L52">        return region;</span>
+    }
+
+    public String getCountry() {
+<span class="nc" id="L56">        return country;</span>
+    }
+
+    public String getRulesetKey() {
+<span class="fc" id="L60">        return rulesetKey;</span>
+    }
+
+    public Integer getRulesetVersion() {
+<span class="fc" id="L64">        return rulesetVersion;</span>
+    }
+
+    public Integer getFieldRegistryVersion() {
+<span class="fc" id="L68">        return fieldRegistryVersion;</span>
+    }
+
+    public String getArtifactUri() {
+<span class="fc" id="L72">        return artifactUri;</span>
+    }
+
+    public String getChecksum() {
+<span class="fc" id="L76">        return checksum;</span>
+    }
+
+    public Instant getPublishedAt() {
+<span class="fc" id="L80">        return publishedAt;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

@@ -1,0 +1,38 @@
+key: CARD_MONITORING
+version: 1
+name: Test MONITORING Rules
+description: Integration test ruleset for MONITORING
+evaluation_type: MONITORING
+rules:
+  - id: MONITORING-high-amount
+    name: High Amount MONITORING
+    description: Flag MONITORING transactions over 500 for review
+    priority: 100
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: gt
+        value: 500
+
+  - id: MONITORING-suspicious-merchant
+    name: Suspicious Merchant
+    description: Flag suspicious merchant patterns
+    priority: 80
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: merchant_name
+        operator: contains
+        value: TEST_SUSPICIOUS
+
+  - id: MONITORING-flagged-transaction
+    name: Previously Flagged
+    description: Decline if previously flagged
+    priority: 60
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: previously_flagged
+        operator: eq
+        value: true

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FieldRegistryArtifact.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.dto</a> &gt; <span class="el_source">FieldRegistryArtifact.java</span></div><h1>FieldRegistryArtifact.java</h1><pre class="source lang-java linenums">package com.fraud.engine.dto;
+
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+
+import java.time.Instant;
+import java.util.List;
+
+/**
+ * DTO representing the complete field registry artifact.
+ * &lt;p&gt;
+ * This contains the actual field definitions loaded from S3.
+ * Stored at: fields/registry/v{version}/fields.json
+ */
+@Schema(description = &quot;Complete field registry artifact with all field definitions&quot;)
+public class FieldRegistryArtifact {
+
+    @Schema(description = &quot;Schema version for compatibility checking&quot;)
+    public int schemaVersion;
+
+    @Schema(description = &quot;Field registry version&quot;)
+    public int registryVersion;
+
+    @Schema(description = &quot;List of field definitions&quot;)
+    public List&lt;FieldRegistryEntry&gt; fields;
+
+    @Schema(description = &quot;Checksum of all field definitions&quot;)
+    public String checksum;
+
+    @Schema(description = &quot;Timestamp when this version was created&quot;)
+    public Instant createdAt;
+
+    @Schema(description = &quot;User or system that created this version&quot;)
+    public String createdBy;
+
+<span class="fc" id="L35">    public FieldRegistryArtifact() {</span>
+<span class="fc" id="L36">    }</span>
+
+    public FieldRegistryArtifact(int schemaVersion, int registryVersion,
+                                 List&lt;FieldRegistryEntry&gt; fields,
+<span class="fc" id="L40">                                 String checksum, Instant createdAt, String createdBy) {</span>
+<span class="fc" id="L41">        this.schemaVersion = schemaVersion;</span>
+<span class="fc" id="L42">        this.registryVersion = registryVersion;</span>
+<span class="fc" id="L43">        this.fields = fields;</span>
+<span class="fc" id="L44">        this.checksum = checksum;</span>
+<span class="fc" id="L45">        this.createdAt = createdAt;</span>
+<span class="fc" id="L46">        this.createdBy = createdBy;</span>
+<span class="fc" id="L47">    }</span>
+
+    // Getters and Setters
+
+    public int getSchemaVersion() {
+<span class="fc" id="L52">        return schemaVersion;</span>
+    }
+
+    public void setSchemaVersion(int schemaVersion) {
+<span class="fc" id="L56">        this.schemaVersion = schemaVersion;</span>
+<span class="fc" id="L57">    }</span>
+
+    public int getRegistryVersion() {
+<span class="fc" id="L60">        return registryVersion;</span>
+    }
+
+    public void setRegistryVersion(int registryVersion) {
+<span class="fc" id="L64">        this.registryVersion = registryVersion;</span>
+<span class="fc" id="L65">    }</span>
+
+    public List&lt;FieldRegistryEntry&gt; getFields() {
+<span class="fc" id="L68">        return fields;</span>
+    }
+
+    public void setFields(List&lt;FieldRegistryEntry&gt; fields) {
+<span class="fc" id="L72">        this.fields = fields;</span>
+<span class="fc" id="L73">    }</span>
+
+    public String getChecksum() {
+<span class="fc" id="L76">        return checksum;</span>
+    }
+
+    public void setChecksum(String checksum) {
+<span class="fc" id="L80">        this.checksum = checksum;</span>
+<span class="fc" id="L81">    }</span>
+
+    public Instant getCreatedAt() {
+<span class="fc" id="L84">        return createdAt;</span>
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+<span class="fc" id="L88">        this.createdAt = createdAt;</span>
+<span class="fc" id="L89">    }</span>
+
+    public String getCreatedBy() {
+<span class="fc" id="L92">        return createdBy;</span>
+    }
+
+    public void setCreatedBy(String createdBy) {
+<span class="fc" id="L96">        this.createdBy = createdBy;</span>
+<span class="fc" id="L97">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

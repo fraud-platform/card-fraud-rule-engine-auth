@@ -1,0 +1,367 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HotReloadCoordinator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.service</a> &gt; <span class="el_source">HotReloadCoordinator.java</span></div><h1>HotReloadCoordinator.java</h1><pre class="source lang-java linenums">package com.fraud.engine.service;
+
+import com.fraud.engine.domain.Ruleset;
+import com.fraud.engine.dto.FieldRegistryManifest;
+import com.fraud.engine.dto.RulesetManifest;
+import com.fraud.engine.loader.FieldRegistryLoader;
+import com.fraud.engine.ruleset.RulesetLoader;
+import com.fraud.engine.ruleset.RulesetRegistry;
+import com.fraud.engine.util.AlertLogger;
+import com.fraud.engine.util.EngineMetrics;
+import jakarta.annotation.PostConstruct;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
+
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Coordinates hot-reload of field registry and rulesets with version compatibility checking.
+ * &lt;p&gt;
+ * Design Decision: Both field registry AND ruleset must be available at startup.
+ * Hot-reload only happens if versions are compatible.
+ * &lt;p&gt;
+ * &lt;b&gt;Startup Behavior:&lt;/b&gt;
+ * &lt;ul&gt;
+ *   &lt;li&gt;Both available → Normal startup&lt;/li&gt;
+ *   &lt;li&gt;Either missing → Fail startup (throw IllegalStateException)&lt;/li&gt;
+ * &lt;/ul&gt;
+ * &lt;p&gt;
+ * &lt;b&gt;Hot-Reload Behavior:&lt;/b&gt;
+ * &lt;ul&gt;
+ *   &lt;li&gt;Versions compatible → Reload both&lt;/li&gt;
+ *   &lt;li&gt;Versions mismatch → Continue with current versions, alert&lt;/li&gt;
+ *   &lt;li&gt;S3 error → Continue with current versions, alert&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+@ApplicationScoped
+<span class="fc" id="L45">public class HotReloadCoordinator {</span>
+
+<span class="fc" id="L47">    private static final Logger LOG = Logger.getLogger(HotReloadCoordinator.class);</span>
+
+    @ConfigProperty(name = &quot;app.field-registry.enable-hot-reload&quot;, defaultValue = &quot;true&quot;)
+    boolean hotReloadEnabled;
+
+    @ConfigProperty(name = &quot;app.hot-reload.poll-interval-seconds&quot;, defaultValue = &quot;30&quot;)
+    int pollIntervalSeconds;
+
+    @ConfigProperty(name = &quot;app.ruleset.required-keys&quot;, defaultValue = &quot;CARD_AUTH,CARD_MONITORING&quot;)
+    String requiredRulesetKeys;
+
+    @Inject
+    FieldRegistryLoader fieldRegistryLoader;
+
+    @Inject
+    FieldRegistryService fieldRegistryService;
+
+    @Inject
+    RulesetLoader rulesetLoader;
+
+    @Inject
+    RulesetRegistry rulesetRegistry;
+
+    @Inject
+    EngineMetrics engineMetrics;
+
+    private ScheduledExecutorService scheduler;
+<span class="fc" id="L74">    private volatile int lastFieldRegistryVersion = -1;</span>
+<span class="fc" id="L75">    private volatile boolean running = false;</span>
+
+    @PostConstruct
+    void start() {
+<span class="nc bnc" id="L79" title="All 2 branches missed.">        if (!hotReloadEnabled) {</span>
+<span class="nc" id="L80">            LOG.info(&quot;Hot reload is disabled via configuration&quot;);</span>
+<span class="nc" id="L81">            return;</span>
+        }
+
+<span class="nc" id="L84">        LOG.infof(&quot;Starting HotReloadCoordinator (poll interval: %ds)&quot;, pollIntervalSeconds);</span>
+
+        // Validate startup - BOTH must be available
+<span class="nc" id="L87">        validateStartup();</span>
+
+        // Initialize versions
+<span class="nc" id="L90">        lastFieldRegistryVersion = fieldRegistryService.getRegistryVersion();</span>
+
+<span class="nc" id="L92">        running = true;</span>
+<span class="nc" id="L93">        scheduler = Executors.newSingleThreadScheduledExecutor(r -&gt; {</span>
+<span class="nc" id="L94">            Thread thread = new Thread(r, &quot;hot-reload-coordinator&quot;);</span>
+<span class="nc" id="L95">            thread.setDaemon(true);</span>
+<span class="nc" id="L96">            return thread;</span>
+        });
+
+<span class="nc" id="L99">        scheduler.scheduleAtFixedRate(this::checkForUpdates, 0, pollIntervalSeconds, TimeUnit.SECONDS);</span>
+
+<span class="nc" id="L101">        LOG.info(&quot;HotReloadCoordinator started successfully&quot;);</span>
+<span class="nc" id="L102">    }</span>
+
+    /**
+     * Validates that both field registry and at least one ruleset are available at startup.
+     *
+     * @throws IllegalStateException if either is unavailable
+     */
+    private void validateStartup() {
+<span class="fc" id="L110">        LOG.info(&quot;Validating S3 artifacts for startup...&quot;);</span>
+
+        // Check field registry
+<span class="fc" id="L113">        FieldRegistryManifest manifest = fieldRegistryLoader.loadManifest();</span>
+<span class="fc bfc" id="L114" title="All 2 branches covered.">        boolean fieldRegistryAvailable = (manifest != null);</span>
+
+        // Check ruleset manifest availability
+<span class="fc" id="L117">        boolean rulesetAvailable = checkRulesetManifests();</span>
+
+<span class="fc bfc" id="L119" title="All 2 branches covered.">        if (!fieldRegistryAvailable) {</span>
+<span class="fc" id="L120">            String errorMsg = String.format(</span>
+                    &quot;CRITICAL STARTUP FAILURE: Field registry is unavailable from S3.%n&quot; +
+                    &quot;  Required: fields/registry/manifest.json%n&quot; +
+                    &quot;  Engine CANNOT start without field registry.%n&quot; +
+                    &quot;  Please verify:%n&quot; +
+                    &quot;    1. S3/MinIO is running and accessible%n&quot; +
+                    &quot;    2. Bucket exists: %s%n&quot; +
+                    &quot;    3. Field registry artifacts have been published&quot;,
+                    &quot;fraud-gov-artifacts&quot;
+            );
+<span class="fc" id="L130">            LOG.error(errorMsg);</span>
+<span class="fc" id="L131">            throw new IllegalStateException(&quot;Startup validation failed: Field registry unavailable from S3&quot;);</span>
+        }
+
+<span class="fc bfc" id="L134" title="All 2 branches covered.">        if (!rulesetAvailable) {</span>
+<span class="fc" id="L135">            String errorMsg = String.format(</span>
+                    &quot;CRITICAL STARTUP FAILURE: Rulesets are unavailable from S3.%n&quot; +
+                    &quot;  Required: rulesets/{ENV}/{RULESET_KEY}/manifest.json%n&quot; +
+                    &quot;  Engine CANNOT start without required ruleset manifests.%n&quot; +
+                    &quot;  Please verify:%n&quot; +
+                    &quot;    1. S3/MinIO is running and accessible%n&quot; +
+                    &quot;    2. Bucket exists: %s%n&quot; +
+                    &quot;    3. Ruleset artifacts and manifest.json have been published&quot;,
+                    &quot;fraud-gov-artifacts&quot;
+            );
+<span class="fc" id="L145">            LOG.error(errorMsg);</span>
+<span class="fc" id="L146">            throw new IllegalStateException(&quot;Startup validation failed: Rulesets unavailable from S3&quot;);</span>
+        }
+
+<span class="fc" id="L149">        LOG.info(&quot;Startup validation complete: Both field registry and rulesets available&quot;);</span>
+<span class="fc" id="L150">    }</span>
+
+    /**
+     * Checks for updates and performs coordinated hot-reload if versions are compatible.
+     */
+    private void checkForUpdates() {
+<span class="fc bfc" id="L156" title="All 2 branches covered.">        if (!running) {</span>
+<span class="fc" id="L157">            return;</span>
+        }
+
+        try {
+            // Check field registry
+<span class="fc" id="L162">            FieldRegistryManifest manifest = fieldRegistryLoader.loadManifest();</span>
+<span class="pc bpc" id="L163" title="1 of 2 branches missed.">            if (manifest == null) {</span>
+<span class="nc" id="L164">                LOG.warn(&quot;Hot-reload: Field registry manifest unavailable, continuing with current version&quot;);</span>
+<span class="nc" id="L165">                return;</span>
+            }
+
+<span class="fc" id="L168">            int newFieldRegistryVersion = manifest.getRegistryVersion();</span>
+
+            // Check if field registry version changed
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">            if (newFieldRegistryVersion != lastFieldRegistryVersion) {</span>
+<span class="fc" id="L172">                LOG.infof(&quot;Hot-reload: Field registry version changed: %d -&gt; %d&quot;,</span>
+<span class="fc" id="L173">                        lastFieldRegistryVersion, newFieldRegistryVersion);</span>
+
+                // Check if loaded rulesets are compatible with new field registry version
+<span class="fc" id="L176">                boolean compatible = checkRulesetCompatibility(newFieldRegistryVersion);</span>
+
+<span class="pc bpc" id="L178" title="1 of 2 branches missed.">                if (compatible) {</span>
+                    // Versions match - safe to reload both
+<span class="fc" id="L180">                    performCoordinatedReload(newFieldRegistryVersion);</span>
+<span class="fc" id="L181">                    engineMetrics.incrementHotReloadSuccess();</span>
+                } else {
+<span class="nc" id="L183">                    engineMetrics.incrementHotReloadFailure();</span>
+<span class="nc" id="L184">                    AlertLogger.versionMismatch(&quot;HotReloadCoordinator&quot;, newFieldRegistryVersion, lastFieldRegistryVersion);</span>
+                }
+            }
+
+<span class="nc" id="L188">        } catch (Exception e) {</span>
+<span class="nc" id="L189">            engineMetrics.incrementHotReloadFailure();</span>
+<span class="nc" id="L190">            AlertLogger.hotReloadFailed(&quot;HotReloadCoordinator&quot;, -1, lastFieldRegistryVersion, e.getMessage());</span>
+<span class="fc" id="L191">        }</span>
+<span class="fc" id="L192">    }</span>
+
+    /**
+     * Checks if all currently loaded rulesets are compatible with the given field registry version.
+     *
+     * @param fieldRegistryVersion the field registry version to check
+     * @return true if all rulesets are compatible, false otherwise
+     */
+    private boolean checkRulesetCompatibility(int fieldRegistryVersion) {
+<span class="fc" id="L201">        return checkRulesetCompatibilityFromManifest(fieldRegistryVersion);</span>
+    }
+
+    private boolean checkRulesetCompatibilityFromManifest(int fieldRegistryVersion) {
+<span class="fc" id="L205">        boolean hasVersionInfo = false;</span>
+
+<span class="fc bfc" id="L207" title="All 2 branches covered.">        for (String country : rulesetRegistry.getCountries()) {</span>
+<span class="fc bfc" id="L208" title="All 2 branches covered.">            for (String key : rulesetRegistry.getRulesetKeys(country)) {</span>
+<span class="fc" id="L209">                RulesetManifest manifest = rulesetLoader.loadManifest(key);</span>
+<span class="fc bfc" id="L210" title="All 2 branches covered.">                if (manifest == null) {</span>
+<span class="fc" id="L211">                    LOG.warnf(&quot;Compatibility check: Ruleset manifest missing for %s&quot;, key);</span>
+<span class="fc" id="L212">                    return false;</span>
+                }
+<span class="fc" id="L214">                Integer rulesetRegistryVersion = manifest.getFieldRegistryVersion();</span>
+<span class="fc bfc" id="L215" title="All 2 branches covered.">                if (rulesetRegistryVersion == null) {</span>
+<span class="fc" id="L216">                    LOG.warnf(&quot;Compatibility check skipped: manifest missing field_registry_version for %s&quot;, key);</span>
+<span class="fc" id="L217">                    continue;</span>
+                }
+<span class="fc" id="L219">                hasVersionInfo = true;</span>
+<span class="fc bfc" id="L220" title="All 2 branches covered.">                if (!rulesetRegistryVersion.equals(fieldRegistryVersion)) {</span>
+<span class="fc" id="L221">                    LOG.warnf(&quot;Compatibility check: Ruleset %s requires field registry version %d, but new version is %d&quot;,</span>
+<span class="fc" id="L222">                            key, rulesetRegistryVersion, fieldRegistryVersion);</span>
+<span class="fc" id="L223">                    return false;</span>
+                }
+<span class="fc" id="L225">            }</span>
+<span class="fc" id="L226">        }</span>
+
+<span class="fc bfc" id="L228" title="All 2 branches covered.">        if (!hasVersionInfo) {</span>
+<span class="fc" id="L229">            LOG.warn(&quot;Compatibility check skipped: no field_registry_version present in manifests&quot;);</span>
+        }
+<span class="fc" id="L231">        return true;</span>
+    }
+
+    private boolean checkRulesetManifests() {
+<span class="fc" id="L235">        String[] keys = requiredRulesetKeys.split(&quot;,&quot;);</span>
+<span class="fc" id="L236">        boolean allAvailable = true;</span>
+
+<span class="fc bfc" id="L238" title="All 2 branches covered.">        for (String rawKey : keys) {</span>
+<span class="fc" id="L239">            String key = rawKey.trim();</span>
+<span class="pc bpc" id="L240" title="1 of 2 branches missed.">            if (key.isEmpty()) {</span>
+<span class="nc" id="L241">                continue;</span>
+            }
+<span class="fc" id="L243">            boolean available = rulesetLoader.isManifestAvailable(key);</span>
+<span class="fc bfc" id="L244" title="All 2 branches covered.">            if (!available) {</span>
+<span class="fc" id="L245">                allAvailable = false;</span>
+<span class="fc" id="L246">                LOG.errorf(&quot;Missing ruleset manifest: %s&quot;, key);</span>
+            }
+        }
+
+<span class="fc" id="L250">        return allAvailable;</span>
+    }
+
+    /**
+     * Performs coordinated hot-reload of both field registry and rulesets.
+     *
+     * @param newFieldRegistryVersion the new field registry version
+     */
+    private void performCoordinatedReload(int newFieldRegistryVersion) {
+        try {
+<span class="fc" id="L260">            LOG.info(&quot;Performing coordinated hot-reload...&quot;);</span>
+
+            // Reload field registry first
+<span class="fc" id="L263">            fieldRegistryService.reload();</span>
+<span class="fc" id="L264">            int actualRegistryVersion = fieldRegistryService.getRegistryVersion();</span>
+
+<span class="pc bpc" id="L266" title="1 of 2 branches missed.">            if (actualRegistryVersion != newFieldRegistryVersion) {</span>
+<span class="nc" id="L267">                LOG.warnf(&quot;Field registry reload resulted in version %d (expected %d)&quot;,</span>
+<span class="nc" id="L268">                        actualRegistryVersion, newFieldRegistryVersion);</span>
+<span class="nc" id="L269">                return;</span>
+            }
+
+            // Reload all rulesets using hotSwap for each
+<span class="fc" id="L273">            Set&lt;String&gt; reloadedKeys = new HashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L274" title="All 2 branches covered.">            for (String country : rulesetRegistry.getCountries()) {</span>
+<span class="fc bfc" id="L275" title="All 2 branches covered.">                for (String key : rulesetRegistry.getRulesetKeys(country)) {</span>
+<span class="fc" id="L276">                    Ruleset current =</span>
+<span class="fc" id="L277">                            rulesetRegistry.getRuleset(country, key);</span>
+<span class="pc bpc" id="L278" title="1 of 2 branches missed.">                    if (current != null) {</span>
+                        // Check if there's a newer version
+<span class="fc" id="L280">                        Optional&lt;Ruleset&gt; latestOpt =</span>
+<span class="fc" id="L281">                                rulesetLoader.loadLatestCompiledRuleset(key);</span>
+<span class="pc bpc" id="L282" title="1 of 2 branches missed.">                        if (latestOpt.isPresent()) {</span>
+<span class="fc" id="L283">                            Ruleset latest = latestOpt.get();</span>
+<span class="fc bfc" id="L284" title="All 2 branches covered.">                            if (latest.getVersion() &gt; current.getVersion()) {</span>
+                                // Check compatibility before swapping
+<span class="fc" id="L286">                                Optional&lt;Ruleset&gt; rulesetOpt = rulesetLoader.loadCompiledRuleset(key, latest.getVersion());</span>
+<span class="pc bpc" id="L287" title="1 of 2 branches missed.">                                if (rulesetOpt.isPresent()) {</span>
+<span class="fc" id="L288">                                    Ruleset ruleset = rulesetOpt.get();</span>
+<span class="pc bpc" id="L289" title="1 of 2 branches missed.">                                    if (ruleset.isCompatibleWith(actualRegistryVersion)) {</span>
+<span class="fc" id="L290">                                        RulesetRegistry.HotSwapResult result =</span>
+<span class="fc" id="L291">                                                rulesetRegistry.hotSwap(country, key, latest.getVersion());</span>
+<span class="pc bpc" id="L292" title="1 of 2 branches missed.">                                        if (result.success()) {</span>
+<span class="fc" id="L293">                                            reloadedKeys.add(key);</span>
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+<span class="fc" id="L300">                }</span>
+<span class="fc" id="L301">            }</span>
+
+            // Update tracked version
+<span class="fc" id="L304">            lastFieldRegistryVersion = actualRegistryVersion;</span>
+
+<span class="fc" id="L306">            LOG.infof(&quot;Coordinated hot-reload complete: Field registry v%d, Rulesets %s&quot;,</span>
+<span class="fc" id="L307">                    actualRegistryVersion, reloadedKeys);</span>
+
+<span class="nc" id="L309">        } catch (Exception e) {</span>
+<span class="nc" id="L310">            LOG.errorf(e, &quot;Coordinated hot-reload failed&quot;);</span>
+            // Don't update tracked version - will retry
+<span class="fc" id="L312">        }</span>
+<span class="fc" id="L313">    }</span>
+
+    /**
+     * Manually triggers a check for updates.
+     *
+     * @return true if update was found and reloaded, false otherwise
+     */
+    public boolean triggerCheck() {
+<span class="fc" id="L321">        int oldVersion = lastFieldRegistryVersion;</span>
+<span class="fc" id="L322">        checkForUpdates();</span>
+<span class="fc bfc" id="L323" title="All 2 branches covered.">        return lastFieldRegistryVersion != oldVersion;</span>
+    }
+
+    /**
+     * Stops the coordinator.
+     */
+    @jakarta.annotation.PreDestroy
+    void stop() {
+<span class="nc bnc" id="L331" title="All 2 branches missed.">        if (!running) {</span>
+<span class="nc" id="L332">            return;</span>
+        }
+
+<span class="nc" id="L335">        LOG.info(&quot;Stopping HotReloadCoordinator...&quot;);</span>
+<span class="nc" id="L336">        running = false;</span>
+
+<span class="nc bnc" id="L338" title="All 2 branches missed.">        if (scheduler != null) {</span>
+<span class="nc" id="L339">            scheduler.shutdown();</span>
+            try {
+<span class="nc bnc" id="L341" title="All 2 branches missed.">                if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {</span>
+<span class="nc" id="L342">                    scheduler.shutdownNow();</span>
+                }
+<span class="nc" id="L344">            } catch (InterruptedException e) {</span>
+<span class="nc" id="L345">                scheduler.shutdownNow();</span>
+<span class="nc" id="L346">                Thread.currentThread().interrupt();</span>
+<span class="nc" id="L347">            }</span>
+        }
+
+<span class="nc" id="L350">        LOG.info(&quot;HotReloadCoordinator stopped&quot;);</span>
+<span class="nc" id="L351">    }</span>
+
+    /**
+     * Returns whether the coordinator is running.
+     */
+    public boolean isRunning() {
+<span class="nc" id="L357">        return running;</span>
+    }
+
+    /**
+     * Returns the current field registry version.
+     */
+    public int getFieldRegistryVersion() {
+<span class="fc" id="L364">        return lastFieldRegistryVersion;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>S3StartupValidator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.startup</a> &gt; <span class="el_source">S3StartupValidator.java</span></div><h1>S3StartupValidator.java</h1><pre class="source lang-java linenums">package com.fraud.engine.startup;
+
+import com.fraud.engine.dto.FieldRegistryManifest;
+import com.fraud.engine.loader.FieldRegistryLoader;
+import com.fraud.engine.ruleset.RulesetLoader;
+import jakarta.annotation.PostConstruct;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
+
+/**
+ * Validates S3 availability at startup.
+ * &lt;p&gt;
+ * &lt;b&gt;Design Decision DD-001 (Revised):&lt;/b&gt;
+ * &lt;ul&gt;
+ *   &lt;li&gt;BOTH field registry AND ruleset must be available from S3&lt;/li&gt;
+ *   &lt;li&gt;Fail-fast if EITHER is missing&lt;/li&gt;
+ *   &lt;li&gt;Hot-reload failures are non-fatal (continue with previous version)&lt;/li&gt;
+ *   &lt;li&gt;Version compatibility checked during hot-reload&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Startup Behavior:&lt;/b&gt;
+ *
+ * | Scenario | Behavior |
+ * |----------|----------|
+ * | Both available | ✅ Normal startup |
+ * | Field registry only | ❌ Fail startup - ruleset required |
+ * | Ruleset only | ❌ Fail startup - field registry required |
+ * | Both unavailable | ❌ Fail startup - both required |
+ *
+ * &lt;p&gt;&lt;b&gt;Hot-Reload Behavior:&lt;/b&gt;
+ *
+ * | Scenario | Behavior |
+ * |----------|----------|
+ * | Versions compatible | ✅ Hot reload both |
+ * | Versions mismatch | ⚠️ Continue with current, alert |
+ * | S3 error | ⚠️ Continue with current, alert |
+ */
+@ApplicationScoped
+<span class="fc" id="L41">public class S3StartupValidator {</span>
+
+<span class="fc" id="L43">    private static final Logger LOG = Logger.getLogger(S3StartupValidator.class);</span>
+
+    @ConfigProperty(name = &quot;app.startup.validation.enabled&quot;, defaultValue = &quot;true&quot;)
+    boolean validationEnabled;
+
+    @ConfigProperty(name = &quot;app.ruleset.required-keys&quot;, defaultValue = &quot;CARD_AUTH,CARD_MONITORING&quot;)
+    String requiredRulesetKeys;
+
+    @Inject
+    FieldRegistryLoader fieldRegistryLoader;
+
+    @Inject
+    RulesetLoader rulesetLoader;
+
+<span class="fc" id="L57">    private volatile boolean fieldRegistryAvailable = false;</span>
+<span class="fc" id="L58">    private volatile boolean rulesetAvailable = false;</span>
+
+    @PostConstruct
+    void validate() {
+<span class="fc bfc" id="L62" title="All 2 branches covered.">        if (!validationEnabled) {</span>
+<span class="fc" id="L63">            LOG.warn(&quot;Startup validation is DISABLED. Engine may start with incomplete configuration.&quot;);</span>
+<span class="fc" id="L64">            return;</span>
+        }
+
+<span class="fc" id="L67">        LOG.info(&quot;Validating S3 artifacts at startup...&quot;);</span>
+
+        // Check field registry availability
+<span class="fc" id="L70">        FieldRegistryManifest manifest = fieldRegistryLoader.loadManifest();</span>
+<span class="fc bfc" id="L71" title="All 2 branches covered.">        fieldRegistryAvailable = (manifest != null);</span>
+
+        // Check ruleset manifest availability
+<span class="fc" id="L74">        rulesetAvailable = checkRulesetManifests();</span>
+
+<span class="fc" id="L76">        LOG.infof(&quot;S3 Availability Check: FieldRegistry=%s, Ruleset=%s&quot;,</span>
+<span class="fc bfc" id="L77" title="All 2 branches covered.">                fieldRegistryAvailable ? &quot;✓ AVAILABLE&quot; : &quot;✗ UNAVAILABLE&quot;,</span>
+<span class="fc bfc" id="L78" title="All 2 branches covered.">                rulesetAvailable ? &quot;✓ AVAILABLE&quot; : &quot;✗ UNAVAILABLE&quot;);</span>
+
+        // Fail-fast if EITHER is unavailable
+<span class="fc bfc" id="L81" title="All 2 branches covered.">        if (!fieldRegistryAvailable) {</span>
+<span class="fc" id="L82">            String errorMsg = String.format(</span>
+                    &quot;CRITICAL STARTUP FAILURE: Field registry is unavailable from S3.%n&quot; +
+                    &quot;  Required: fields/registry/manifest.json%n&quot; +
+                    &quot;  Engine CANNOT start without field registry.%n&quot; +
+                    &quot;  Please verify:%n&quot; +
+                    &quot;    1. S3/MinIO is running and accessible%n&quot; +
+                    &quot;    2. Bucket exists and is accessible%n&quot; +
+                    &quot;    3. Field registry artifacts have been published by rule-management service&quot;
+            );
+<span class="fc" id="L91">            LOG.error(errorMsg);</span>
+<span class="fc" id="L92">            throw new IllegalStateException(&quot;Startup validation failed: Field registry unavailable from S3&quot;);</span>
+        }
+
+<span class="fc bfc" id="L95" title="All 2 branches covered.">        if (!rulesetAvailable) {</span>
+<span class="fc" id="L96">            String errorMsg = String.format(</span>
+                    &quot;CRITICAL STARTUP FAILURE: Rulesets are unavailable from S3.%n&quot; +
+                    &quot;  Required: rulesets/{ENV}/{RULESET_KEY}/manifest.json%n&quot; +
+                    &quot;  Engine CANNOT start without required ruleset manifests.%n&quot; +
+                    &quot;  Please verify:%n&quot; +
+                    &quot;    1. S3/MinIO is running and accessible%n&quot; +
+                    &quot;    2. Bucket exists and is accessible%n&quot; +
+                    &quot;    3. Ruleset artifacts and manifest.json have been published by rule-management service&quot;
+            );
+<span class="fc" id="L105">            LOG.error(errorMsg);</span>
+<span class="fc" id="L106">            throw new IllegalStateException(&quot;Startup validation failed: Rulesets unavailable from S3&quot;);</span>
+        }
+
+<span class="fc" id="L109">        LOG.info(&quot;✓ Startup validation complete: Both field registry and rulesets available&quot;);</span>
+<span class="fc" id="L110">        LOG.infof(&quot;  Field Registry Version: %d&quot;, manifest.getRegistryVersion());</span>
+<span class="fc" id="L111">    }</span>
+
+    /**
+     * Returns whether field registry was available at startup.
+     *
+     * @return true if available from S3, false otherwise
+     */
+    public boolean isFieldRegistryAvailable() {
+<span class="fc" id="L119">        return fieldRegistryAvailable;</span>
+    }
+
+    /**
+     * Returns whether ruleset was available at startup.
+     *
+     * @return true if available from S3, false otherwise
+     */
+    public boolean isRulesetAvailable() {
+<span class="fc" id="L128">        return rulesetAvailable;</span>
+    }
+
+    /**
+     * Returns whether all required artifacts were available at startup.
+     *
+     * @return true if both available, false if any missing
+     */
+    public boolean isStartupHealthy() {
+<span class="fc bfc" id="L137" title="All 4 branches covered.">        return fieldRegistryAvailable &amp;&amp; rulesetAvailable;</span>
+    }
+
+    private boolean checkRulesetManifests() {
+<span class="fc" id="L141">        String[] keys = requiredRulesetKeys.split(&quot;,&quot;);</span>
+<span class="fc" id="L142">        boolean allAvailable = true;</span>
+
+<span class="fc bfc" id="L144" title="All 2 branches covered.">        for (String rawKey : keys) {</span>
+<span class="fc" id="L145">            String key = rawKey.trim();</span>
+<span class="pc bpc" id="L146" title="1 of 2 branches missed.">            if (key.isEmpty()) {</span>
+<span class="nc" id="L147">                continue;</span>
+            }
+<span class="fc" id="L149">            boolean available = rulesetLoader.isManifestAvailable(key);</span>
+<span class="fc bfc" id="L150" title="All 2 branches covered.">            if (!available) {</span>
+<span class="fc" id="L151">                allAvailable = false;</span>
+<span class="fc" id="L152">                LOG.errorf(&quot;Missing ruleset manifest: %s&quot;, key);</span>
+            }
+        }
+
+<span class="fc" id="L156">        return allAvailable;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

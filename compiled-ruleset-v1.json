@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/compiled-ruleset-v1.json",
+  "title": "CompiledRulesetV1",
+  "type": "object",
+  "required": ["schema_version", "ruleset_key", "ruleset_version", "execution_mode", "generated_at", "rules"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "ruleset_key": { "type": "string", "enum": ["CARD_AUTH", "CARD_MONITORING"] },
+    "ruleset_version": { "type": "integer", "minimum": 1 },
+    "execution_mode": { "type": "string", "enum": ["FIRST_MATCH", "ALL_MATCHING"] },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rule" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "rule": {
+      "type": "object",
+      "required": ["rule_id", "rule_version", "enabled", "condition", "action"],
+      "properties": {
+        "rule_id": { "type": "string", "minLength": 1 },
+        "rule_version": { "type": "integer", "minimum": 1 },
+        "enabled": { "type": "boolean" },
+        "priority": { "type": "integer" },
+        "condition": { "$ref": "#/$defs/expr" },
+        "action": {
+          "type": "object",
+          "description": "Action shape differs by ruleset_key (AUTH decision vs MONITORING severity).",
+          "additionalProperties": true
+        },
+        "velocity": {
+          "type": "object",
+          "required": ["dimension", "window_seconds", "threshold"],
+          "properties": {
+            "dimension": { "type": "string", "minLength": 1 },
+            "window_seconds": { "type": "integer", "minimum": 1, "maximum": 86400 },
+            "threshold": { "type": "integer", "minimum": 1 },
+            "comparison": { "type": "string", "enum": [">="] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": true
+    },
+    "expr": {
+      "type": "object",
+      "required": ["op"],
+      "properties": {
+        "op": {
+          "type": "string",
+          "enum": [
+            "and",
+            "or",
+            "not",
+            "eq",
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "in",
+            "not_in",
+            "starts_with",
+            "ends_with",
+            "contains",
+            "exists"
+          ]
+        },
+        "field": { "type": "string", "minLength": 1 },
+        "value": {},
+        "values": { "type": "array" },
+        "args": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expr" }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

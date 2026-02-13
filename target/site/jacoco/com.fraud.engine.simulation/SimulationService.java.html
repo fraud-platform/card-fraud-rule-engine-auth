@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SimulationService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.simulation</a> &gt; <span class="el_source">SimulationService.java</span></div><h1>SimulationService.java</h1><pre class="source lang-java linenums">package com.fraud.engine.simulation;
+
+import com.fraud.engine.domain.Condition;
+import com.fraud.engine.domain.DebugInfo;
+import com.fraud.engine.domain.Decision;
+import com.fraud.engine.domain.Rule;
+import com.fraud.engine.domain.Ruleset;
+import com.fraud.engine.domain.TransactionContext;
+import com.fraud.engine.domain.VelocityConfig;
+import com.fraud.engine.engine.ConditionCompiler;
+import com.fraud.engine.engine.RuleEvaluator;
+import com.fraud.engine.velocity.VelocityService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.jboss.logging.Logger;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Service for simulating rule evaluation with inline ruleset YAML.
+ * &lt;p&gt;
+ * Unlike normal evaluation:
+ * &lt;ul&gt;
+ *   &lt;li&gt;No caching (ruleset compiled in-memory each time)&lt;/li&gt;
+ *   &lt;li&gt;No Kafka publishing (results returned directly)&lt;/li&gt;
+ *   &lt;li&gt;No Redis writes (read-only for velocity)&lt;/li&gt;
+ *   &lt;li&gt;Enhanced explanation output&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * @see ADR-0009 for details on compiled ruleset debug mode
+ */
+@ApplicationScoped
+public class SimulationService {
+
+<span class="fc" id="L43">    private static final Logger LOG = Logger.getLogger(SimulationService.class);</span>
+
+    @Inject
+    RuleEvaluator ruleEvaluator;
+
+    @Inject
+    VelocityService velocityService;
+
+    private final ObjectMapper yamlMapper;
+
+<span class="fc" id="L53">    public SimulationService() {</span>
+<span class="fc" id="L54">        this.yamlMapper = new ObjectMapper(new YAMLFactory());</span>
+<span class="fc" id="L55">        this.yamlMapper.registerModule(new JavaTimeModule());</span>
+<span class="fc" id="L56">    }</span>
+
+    /**
+     * Simulates evaluation with an inline ruleset.
+     *
+     * @param transaction  the transaction to evaluate
+     * @param rulesetYaml  the inline ruleset YAML
+     * @return simulation result with enhanced explanations
+     */
+    public SimulationResult simulate(TransactionContext transaction, String rulesetYaml) {
+<span class="fc" id="L66">        long startTime = System.currentTimeMillis();</span>
+
+        try {
+            // 1. Parse inline YAML
+<span class="fc" id="L70">            Ruleset ruleset = parseRuleset(rulesetYaml);</span>
+
+            // 2. Evaluate with explanation enabled
+            // Use replay mode to avoid side effects
+<span class="fc" id="L74">            Decision decision = ruleEvaluator.evaluate(transaction, ruleset, true);</span>
+
+            // 3. Build enhanced response
+<span class="fc" id="L77">            return buildSimulationResult(transaction, decision, ruleset);</span>
+
+<span class="fc" id="L79">        } catch (InvalidRulesetException e) {</span>
+<span class="fc" id="L80">            throw e;</span>
+<span class="nc" id="L81">        } catch (Exception e) {</span>
+<span class="nc" id="L82">            LOG.errorf(e, &quot;Simulation error&quot;);</span>
+<span class="nc" id="L83">            throw new SimulationException(&quot;Simulation failed&quot;, e);</span>
+        }
+    }
+
+    /**
+     * Parses ruleset from YAML string.
+     */
+    private Ruleset parseRuleset(String yaml) {
+        try {
+<span class="fc" id="L92">            Ruleset ruleset = yamlMapper.readValue(yaml, Ruleset.class);</span>
+<span class="pc bpc" id="L93" title="1 of 2 branches missed.">            if (ruleset == null) {</span>
+<span class="nc" id="L94">                throw new InvalidRulesetException(&quot;Ruleset is null&quot;);</span>
+            }
+<span class="pc bpc" id="L96" title="2 of 4 branches missed.">            if (ruleset.getKey() == null || ruleset.getKey().isBlank()) {</span>
+<span class="nc" id="L97">                ruleset.setKey(&quot;SIMULATION&quot;);</span>
+            }
+<span class="pc bpc" id="L99" title="1 of 2 branches missed.">            if (ruleset.getRules() == null) {</span>
+<span class="nc" id="L100">                ruleset.setRules(new ArrayList&lt;&gt;());</span>
+            }
+<span class="fc" id="L102">            return ruleset;</span>
+<span class="fc" id="L103">        } catch (Exception e) {</span>
+<span class="fc" id="L104">            throw new InvalidRulesetException(&quot;Failed to parse ruleset YAML: &quot; + e.getMessage(), e);</span>
+        }
+    }
+
+    /**
+     * Builds an enhanced simulation result.
+     */
+    private SimulationResult buildSimulationResult(TransactionContext transaction,
+                                                    Decision decision,
+                                                    Ruleset ruleset) {
+<span class="fc" id="L114">        SimulationResult result = new SimulationResult();</span>
+<span class="fc" id="L115">        result.setTransactionId(transaction.getTransactionId());</span>
+<span class="fc" id="L116">        result.setDecision(decision.getDecision());</span>
+<span class="fc" id="L117">        result.setRulesetKey(ruleset.getKey());</span>
+<span class="fc" id="L118">        result.setEvaluatedAt(Instant.now());</span>
+<span class="fc" id="L119">        result.setEvaluationTimeMs(decision.getProcessingTimeMs());</span>
+
+        // Add matched rules with explanations
+<span class="pc bpc" id="L122" title="1 of 4 branches missed.">        if (decision.getMatchedRules() != null &amp;&amp; !decision.getMatchedRules().isEmpty()) {</span>
+<span class="fc" id="L123">            result.setMatchedRules(decision.getMatchedRules());</span>
+
+            // Build explanations
+<span class="fc" id="L126">            List&lt;String&gt; explanations = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L127" title="All 2 branches covered.">            for (Decision.MatchedRule matched : decision.getMatchedRules()) {</span>
+<span class="fc" id="L128">                explanations.add(buildRuleExplanation(matched));</span>
+<span class="fc" id="L129">            }</span>
+<span class="fc" id="L130">            result.setExplanations(explanations);</span>
+
+            // Set primary explanation
+<span class="pc bpc" id="L133" title="1 of 2 branches missed.">            if (!explanations.isEmpty()) {</span>
+<span class="fc" id="L134">                result.setExplanation(buildPrimaryExplanation(decision.getMatchedRules()));</span>
+            }
+        }
+
+        // Add velocity results if present
+<span class="pc bpc" id="L139" title="2 of 4 branches missed.">        if (decision.getVelocityResults() != null &amp;&amp; !decision.getVelocityResults().isEmpty()) {</span>
+<span class="nc" id="L140">            result.setVelocityResults(decision.getVelocityResults());</span>
+        }
+
+        // Add debug info if available
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">        if (decision.getDebugInfo() != null) {</span>
+<span class="fc" id="L145">            result.setDebugInfo(decision.getDebugInfo());</span>
+        }
+
+        // Add engine mode info
+<span class="pc bpc" id="L149" title="1 of 2 branches missed.">        if (decision.getEngineMode() != null) {</span>
+<span class="fc" id="L150">            result.setEngineMode(decision.getEngineMode());</span>
+        }
+
+<span class="fc" id="L153">        return result;</span>
+    }
+
+    /**
+     * Builds a human-readable explanation for a matched rule.
+     */
+    private String buildRuleExplanation(Decision.MatchedRule matched) {
+<span class="fc" id="L160">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L161">        sb.append(&quot;Rule '&quot;).append(matched.getRuleName()).append(&quot;' matched&quot;);</span>
+
+<span class="pc bpc" id="L163" title="3 of 4 branches missed.">        if (matched.getConditionsMet() != null &amp;&amp; !matched.getConditionsMet().isEmpty()) {</span>
+<span class="nc" id="L164">            sb.append(&quot;: &quot;);</span>
+<span class="nc" id="L165">            sb.append(String.join(&quot;, &quot;, matched.getConditionsMet()));</span>
+        }
+
+<span class="fc" id="L168">        sb.append(&quot; -&gt; Action: &quot;).append(matched.getAction());</span>
+
+<span class="fc" id="L170">        return sb.toString();</span>
+    }
+
+    /**
+     * Builds the primary explanation for the decision.
+     */
+    private String buildPrimaryExplanation(List&lt;Decision.MatchedRule&gt; matchedRules) {
+<span class="pc bpc" id="L177" title="2 of 4 branches missed.">        if (matchedRules == null || matchedRules.isEmpty()) {</span>
+<span class="nc" id="L178">            return &quot;No rules matched - defaulted to APPROVE&quot;;</span>
+        }
+
+<span class="fc" id="L181">        Decision.MatchedRule first = matchedRules.get(0);</span>
+<span class="fc" id="L182">        return String.format(&quot;Rule '%s' matched with action %s (priority %d)&quot;,</span>
+<span class="fc" id="L183">                first.getRuleName(), first.getAction(), first.getPriority());</span>
+    }
+
+    /**
+     * Simulation result class.
+     */
+<span class="fc" id="L189">    public static class SimulationResult {</span>
+        private String transactionId;
+        private String decision;
+        private String rulesetKey;
+        private Integer rulesetVersion;
+        private List&lt;?&gt; matchedRules;
+        private Map&lt;String, ?&gt; velocityResults;
+        private List&lt;String&gt; explanations;
+        private String explanation;
+        private Instant evaluatedAt;
+        private long evaluationTimeMs;
+        private String engineMode;
+        private Object debugInfo;
+
+        public String getTransactionId() {
+<span class="fc" id="L204">            return transactionId;</span>
+        }
+
+        public void setTransactionId(String transactionId) {
+<span class="fc" id="L208">            this.transactionId = transactionId;</span>
+<span class="fc" id="L209">        }</span>
+
+        public String getDecision() {
+<span class="fc" id="L212">            return decision;</span>
+        }
+
+        public void setDecision(String decision) {
+<span class="fc" id="L216">            this.decision = decision;</span>
+<span class="fc" id="L217">        }</span>
+
+        public String getRulesetKey() {
+<span class="fc" id="L220">            return rulesetKey;</span>
+        }
+
+        public void setRulesetKey(String rulesetKey) {
+<span class="fc" id="L224">            this.rulesetKey = rulesetKey;</span>
+<span class="fc" id="L225">        }</span>
+
+        public Integer getRulesetVersion() {
+<span class="fc" id="L228">            return rulesetVersion;</span>
+        }
+
+        public void setRulesetVersion(Integer rulesetVersion) {
+<span class="fc" id="L232">            this.rulesetVersion = rulesetVersion;</span>
+<span class="fc" id="L233">        }</span>
+
+        public List&lt;?&gt; getMatchedRules() {
+<span class="fc" id="L236">            return matchedRules;</span>
+        }
+
+        public void setMatchedRules(List&lt;?&gt; matchedRules) {
+<span class="fc" id="L240">            this.matchedRules = matchedRules;</span>
+<span class="fc" id="L241">        }</span>
+
+        public Map&lt;String, ?&gt; getVelocityResults() {
+<span class="nc" id="L244">            return velocityResults;</span>
+        }
+
+        public void setVelocityResults(Map&lt;String, ?&gt; velocityResults) {
+<span class="nc" id="L248">            this.velocityResults = velocityResults;</span>
+<span class="nc" id="L249">        }</span>
+
+        public List&lt;String&gt; getExplanations() {
+<span class="nc" id="L252">            return explanations;</span>
+        }
+
+        public void setExplanations(List&lt;String&gt; explanations) {
+<span class="fc" id="L256">            this.explanations = explanations;</span>
+<span class="fc" id="L257">        }</span>
+
+        public String getExplanation() {
+<span class="fc" id="L260">            return explanation;</span>
+        }
+
+        public void setExplanation(String explanation) {
+<span class="fc" id="L264">            this.explanation = explanation;</span>
+<span class="fc" id="L265">        }</span>
+
+        public Instant getEvaluatedAt() {
+<span class="nc" id="L268">            return evaluatedAt;</span>
+        }
+
+        public void setEvaluatedAt(Instant evaluatedAt) {
+<span class="fc" id="L272">            this.evaluatedAt = evaluatedAt;</span>
+<span class="fc" id="L273">        }</span>
+
+        public long getEvaluationTimeMs() {
+<span class="fc" id="L276">            return evaluationTimeMs;</span>
+        }
+
+        public void setEvaluationTimeMs(long evaluationTimeMs) {
+<span class="fc" id="L280">            this.evaluationTimeMs = evaluationTimeMs;</span>
+<span class="fc" id="L281">        }</span>
+
+        public String getEngineMode() {
+<span class="nc" id="L284">            return engineMode;</span>
+        }
+
+        public void setEngineMode(String engineMode) {
+<span class="fc" id="L288">            this.engineMode = engineMode;</span>
+<span class="fc" id="L289">        }</span>
+
+        public Object getDebugInfo() {
+<span class="nc" id="L292">            return debugInfo;</span>
+        }
+
+        public void setDebugInfo(Object debugInfo) {
+<span class="fc" id="L296">            this.debugInfo = debugInfo;</span>
+<span class="fc" id="L297">        }</span>
+    }
+
+    /**
+     * Exception thrown when ruleset validation fails.
+     */
+    public static class InvalidRulesetException extends RuntimeException {
+        public InvalidRulesetException(String message) {
+<span class="nc" id="L305">            super(message);</span>
+<span class="nc" id="L306">        }</span>
+
+        public InvalidRulesetException(String message, Throwable cause) {
+<span class="fc" id="L309">            super(message, cause);</span>
+<span class="fc" id="L310">        }</span>
+    }
+
+    /**
+     * Exception thrown when simulation fails.
+     */
+    public static class SimulationException extends RuntimeException {
+        public SimulationException(String message) {
+<span class="nc" id="L318">            super(message);</span>
+<span class="nc" id="L319">        }</span>
+
+        public SimulationException(String message, Throwable cause) {
+<span class="fc" id="L322">            super(message, cause);</span>
+<span class="fc" id="L323">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

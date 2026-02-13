@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "ruleset_key": "CARD_MONITORING",
+  "ruleset_version": 1,
+  "execution_mode": "ALL_MATCHING",
+  "generated_at": "2026-01-28T12:00:00Z",
+  "ruleset_id": "local-MONITORING-v1",
+  "rules": [
+    {
+      "rule_id": "always-review",
+      "rule_version": 1,
+      "enabled": true,
+      "priority": 10,
+      "condition": {
+        "op": "exists",
+        "field": "transaction_id"
+      },
+      "action": {
+        "action": "REVIEW"
+      }
+    }
+  ]
+}

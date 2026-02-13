@@ -1,0 +1,594 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Decision.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.domain</a> &gt; <span class="el_source">Decision.java</span></div><h1>Decision.java</h1><pre class="source lang-java linenums">package com.fraud.engine.domain;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Represents the decision result from evaluating a transaction.
+ *
+ * Contains:
+ * - The final decision (APPROVE, DECLINE). REVIEW is reserved for rule actions only.
+ * - Engine mode (NORMAL, DEGRADED, FAIL_OPEN)
+ - Matched rules and their actions
+ - Velocity check results
+ - Error information if any
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class Decision {
+
+    @JsonProperty(&quot;decision_id&quot;)
+    private String decisionId;
+
+    @JsonProperty(&quot;transaction_id&quot;)
+    private String transactionId;
+
+    @JsonProperty(&quot;evaluation_type&quot;)
+    private String evaluationType;
+
+    @JsonProperty(&quot;decision&quot;)
+    private String decision;
+
+    @JsonProperty(&quot;engine_mode&quot;)
+    private String engineMode;
+
+    @JsonProperty(&quot;engine_error_code&quot;)
+    private String engineErrorCode;
+
+    @JsonProperty(&quot;engine_error_message&quot;)
+    private String engineErrorMessage;
+
+    @JsonProperty(&quot;ruleset_key&quot;)
+    private String rulesetKey;
+
+    @JsonProperty(&quot;ruleset_version&quot;)
+    private Integer rulesetVersion;
+
+    @JsonProperty(&quot;ruleset_id&quot;)
+    private String rulesetId;
+
+<span class="fc" id="L57">    @JsonProperty(&quot;matched_rules&quot;)</span>
+<span class="fc" id="L58">    private List&lt;MatchedRule&gt; matchedRules = Collections.emptyList();</span>
+
+<span class="fc" id="L60">    @JsonProperty(&quot;velocity_results&quot;)</span>
+<span class="fc" id="L61">    private Map&lt;String, VelocityResult&gt; velocityResults = Collections.emptyMap();</span>
+
+    @JsonProperty(&quot;timestamp&quot;)
+    private Instant timestamp;
+
+    @JsonProperty(&quot;processing_time_ms&quot;)
+    private long processingTimeMs;
+
+    @JsonProperty(&quot;debug_info&quot;)
+    private DebugInfo debugInfo;
+
+    @JsonProperty(&quot;transaction_context&quot;)
+    private Map&lt;String, Object&gt; transactionContext;
+
+    @JsonProperty(&quot;velocity_snapshot&quot;)
+    private Map&lt;String, VelocityResult&gt; velocitySnapshot;
+
+    @JsonProperty(&quot;engine_metadata&quot;)
+    private EngineMetadata engineMetadata;
+
+    @JsonProperty(&quot;timing_breakdown&quot;)
+    private TimingBreakdown timingBreakdown;
+
+<span class="fc" id="L84">    public Decision() {</span>
+<span class="fc" id="L85">        this.decisionId = UUID.randomUUID().toString();</span>
+<span class="fc" id="L86">        this.timestamp = Instant.now();</span>
+<span class="fc" id="L87">    }</span>
+
+    public Decision(String transactionId, String evaluationType) {
+<span class="fc" id="L90">        this();</span>
+<span class="fc" id="L91">        this.transactionId = transactionId;</span>
+<span class="fc" id="L92">        this.evaluationType = evaluationType;</span>
+<span class="fc" id="L93">    }</span>
+
+    public String getDecisionId() {
+<span class="fc" id="L96">        return decisionId;</span>
+    }
+
+    public void setDecisionId(String decisionId) {
+<span class="fc" id="L100">        this.decisionId = decisionId;</span>
+<span class="fc" id="L101">    }</span>
+
+    public String getTransactionId() {
+<span class="fc" id="L104">        return transactionId;</span>
+    }
+
+    public void setTransactionId(String transactionId) {
+<span class="fc" id="L108">        this.transactionId = transactionId;</span>
+<span class="fc" id="L109">    }</span>
+
+    public String getEvaluationType() {
+<span class="fc" id="L112">        return evaluationType;</span>
+    }
+
+    public void setEvaluationType(String evaluationType) {
+<span class="fc" id="L116">        this.evaluationType = evaluationType;</span>
+<span class="fc" id="L117">    }</span>
+
+    public String getDecision() {
+<span class="fc" id="L120">        return decision;</span>
+    }
+
+    public void setDecision(String decision) {
+<span class="fc" id="L124">        this.decision = decision;</span>
+<span class="fc" id="L125">    }</span>
+
+    public String getEngineMode() {
+<span class="fc" id="L128">        return engineMode;</span>
+    }
+
+    public void setEngineMode(String engineMode) {
+<span class="fc" id="L132">        this.engineMode = engineMode;</span>
+<span class="fc" id="L133">    }</span>
+
+    public String getEngineErrorCode() {
+<span class="fc" id="L136">        return engineErrorCode;</span>
+    }
+
+    public void setEngineErrorCode(String engineErrorCode) {
+<span class="fc" id="L140">        this.engineErrorCode = engineErrorCode;</span>
+<span class="fc" id="L141">    }</span>
+
+    public String getEngineErrorMessage() {
+<span class="fc" id="L144">        return engineErrorMessage;</span>
+    }
+
+    public void setEngineErrorMessage(String engineErrorMessage) {
+<span class="fc" id="L148">        this.engineErrorMessage = engineErrorMessage;</span>
+<span class="fc" id="L149">    }</span>
+
+    public String getRulesetKey() {
+<span class="fc" id="L152">        return rulesetKey;</span>
+    }
+
+    public void setRulesetKey(String rulesetKey) {
+<span class="fc" id="L156">        this.rulesetKey = rulesetKey;</span>
+<span class="fc" id="L157">    }</span>
+
+    public Integer getRulesetVersion() {
+<span class="fc" id="L160">        return rulesetVersion;</span>
+    }
+
+    public void setRulesetVersion(Integer rulesetVersion) {
+<span class="fc" id="L164">        this.rulesetVersion = rulesetVersion;</span>
+<span class="fc" id="L165">    }</span>
+
+    public String getRulesetId() {
+<span class="fc" id="L168">        return rulesetId;</span>
+    }
+
+    public void setRulesetId(String rulesetId) {
+<span class="fc" id="L172">        this.rulesetId = rulesetId;</span>
+<span class="fc" id="L173">    }</span>
+
+    public List&lt;MatchedRule&gt; getMatchedRules() {
+<span class="fc" id="L176">        return matchedRules;</span>
+    }
+
+    public void setMatchedRules(List&lt;MatchedRule&gt; matchedRules) {
+<span class="pc bpc" id="L180" title="1 of 2 branches missed.">        this.matchedRules = matchedRules != null ? matchedRules : Collections.emptyList();</span>
+<span class="fc" id="L181">    }</span>
+
+    public void addMatchedRule(MatchedRule matchedRule) {
+<span class="pc bpc" id="L184" title="1 of 2 branches missed.">        if (!(this.matchedRules instanceof ArrayList)) {</span>
+<span class="pc bpc" id="L185" title="1 of 2 branches missed.">            this.matchedRules = this.matchedRules.isEmpty()</span>
+<span class="fc" id="L186">                    ? new ArrayList&lt;&gt;(2)</span>
+<span class="pc" id="L187">                    : new ArrayList&lt;&gt;(this.matchedRules);</span>
+        }
+<span class="fc" id="L189">        this.matchedRules.add(matchedRule);</span>
+<span class="fc" id="L190">    }</span>
+
+    public Map&lt;String, VelocityResult&gt; getVelocityResults() {
+<span class="fc" id="L193">        return velocityResults;</span>
+    }
+
+    public void setVelocityResults(Map&lt;String, VelocityResult&gt; velocityResults) {
+<span class="pc bpc" id="L197" title="1 of 2 branches missed.">        this.velocityResults = velocityResults != null ? velocityResults : Collections.emptyMap();</span>
+<span class="fc" id="L198">    }</span>
+
+    public void addVelocityResult(String key, VelocityResult result) {
+<span class="pc bpc" id="L201" title="1 of 2 branches missed.">        if (!(this.velocityResults instanceof HashMap)) {</span>
+<span class="pc bpc" id="L202" title="1 of 2 branches missed.">            this.velocityResults = this.velocityResults.isEmpty()</span>
+<span class="fc" id="L203">                    ? new HashMap&lt;&gt;(2)</span>
+<span class="pc" id="L204">                    : new HashMap&lt;&gt;(this.velocityResults);</span>
+        }
+<span class="fc" id="L206">        this.velocityResults.put(key, result);</span>
+<span class="fc" id="L207">    }</span>
+
+    public Instant getTimestamp() {
+<span class="fc" id="L210">        return timestamp;</span>
+    }
+
+    public void setTimestamp(Instant timestamp) {
+<span class="fc" id="L214">        this.timestamp = timestamp;</span>
+<span class="fc" id="L215">    }</span>
+
+    public long getProcessingTimeMs() {
+<span class="fc" id="L218">        return processingTimeMs;</span>
+    }
+
+    public void setProcessingTimeMs(long processingTimeMs) {
+<span class="fc" id="L222">        this.processingTimeMs = processingTimeMs;</span>
+<span class="fc" id="L223">    }</span>
+
+    public DebugInfo getDebugInfo() {
+<span class="fc" id="L226">        return debugInfo;</span>
+    }
+
+    public void setDebugInfo(DebugInfo debugInfo) {
+<span class="fc" id="L230">        this.debugInfo = debugInfo;</span>
+<span class="fc" id="L231">    }</span>
+
+    public Map&lt;String, Object&gt; getTransactionContext() {
+<span class="fc" id="L234">        return transactionContext;</span>
+    }
+
+    public void setTransactionContext(Map&lt;String, Object&gt; transactionContext) {
+<span class="fc" id="L238">        this.transactionContext = transactionContext;</span>
+<span class="fc" id="L239">    }</span>
+
+    public Map&lt;String, VelocityResult&gt; getVelocitySnapshot() {
+<span class="fc" id="L242">        return velocitySnapshot;</span>
+    }
+
+    public void setVelocitySnapshot(Map&lt;String, VelocityResult&gt; velocitySnapshot) {
+<span class="nc" id="L246">        this.velocitySnapshot = velocitySnapshot;</span>
+<span class="nc" id="L247">    }</span>
+
+    public EngineMetadata getEngineMetadata() {
+<span class="fc" id="L250">        return engineMetadata;</span>
+    }
+
+    public void setEngineMetadata(EngineMetadata engineMetadata) {
+<span class="fc" id="L254">        this.engineMetadata = engineMetadata;</span>
+<span class="fc" id="L255">    }</span>
+
+    public TimingBreakdown getTimingBreakdown() {
+<span class="fc" id="L258">        return timingBreakdown;</span>
+    }
+
+    public void setTimingBreakdown(TimingBreakdown timingBreakdown) {
+<span class="fc" id="L262">        this.timingBreakdown = timingBreakdown;</span>
+<span class="fc" id="L263">    }</span>
+
+    /**
+     * Represents a rule that matched during evaluation.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class MatchedRule {
+
+        @JsonProperty(&quot;rule_id&quot;)
+        private String ruleId;
+
+        @JsonProperty(&quot;rule_name&quot;)
+        private String ruleName;
+
+        @JsonProperty(&quot;action&quot;)
+        private String action;
+
+        @JsonProperty(&quot;priority&quot;)
+        private int priority;
+
+        @JsonProperty(&quot;conditions_met&quot;)
+        private List&lt;String&gt; conditionsMet;
+
+        @JsonProperty(&quot;condition_values&quot;)
+        private Map&lt;String, Object&gt; conditionValues;
+
+        @JsonProperty(&quot;rule_version&quot;)
+        private Integer ruleVersion;
+
+        @JsonProperty(&quot;rule_version_id&quot;)
+        private String ruleVersionId;
+
+        @JsonProperty(&quot;matched&quot;)
+        private Boolean matched;
+
+        @JsonProperty(&quot;contributing&quot;)
+        private Boolean contributing;
+
+<span class="fc" id="L301">        public MatchedRule() {</span>
+<span class="fc" id="L302">        }</span>
+
+<span class="fc" id="L304">        public MatchedRule(String ruleId, String ruleName, String action) {</span>
+<span class="fc" id="L305">            this.ruleId = ruleId;</span>
+<span class="fc" id="L306">            this.ruleName = ruleName;</span>
+<span class="fc" id="L307">            this.action = action;</span>
+<span class="fc" id="L308">        }</span>
+
+        public String getRuleId() {
+<span class="fc" id="L311">            return ruleId;</span>
+        }
+
+        public void setRuleId(String ruleId) {
+<span class="nc" id="L315">            this.ruleId = ruleId;</span>
+<span class="nc" id="L316">        }</span>
+
+        public String getRuleName() {
+<span class="fc" id="L319">            return ruleName;</span>
+        }
+
+        public void setRuleName(String ruleName) {
+<span class="nc" id="L323">            this.ruleName = ruleName;</span>
+<span class="nc" id="L324">        }</span>
+
+        public String getAction() {
+<span class="fc" id="L327">            return action;</span>
+        }
+
+        public void setAction(String action) {
+<span class="nc" id="L331">            this.action = action;</span>
+<span class="nc" id="L332">        }</span>
+
+        public int getPriority() {
+<span class="fc" id="L335">            return priority;</span>
+        }
+
+        public void setPriority(int priority) {
+<span class="fc" id="L339">            this.priority = priority;</span>
+<span class="fc" id="L340">        }</span>
+
+        public List&lt;String&gt; getConditionsMet() {
+<span class="fc" id="L343">            return conditionsMet;</span>
+        }
+
+        public void setConditionsMet(List&lt;String&gt; conditionsMet) {
+<span class="fc" id="L347">            this.conditionsMet = conditionsMet;</span>
+<span class="fc" id="L348">        }</span>
+
+        public Map&lt;String, Object&gt; getConditionValues() {
+<span class="nc" id="L351">            return conditionValues;</span>
+        }
+
+        public void setConditionValues(Map&lt;String, Object&gt; conditionValues) {
+<span class="nc" id="L355">            this.conditionValues = conditionValues;</span>
+<span class="nc" id="L356">        }</span>
+
+        public Integer getRuleVersion() {
+<span class="nc" id="L359">            return ruleVersion;</span>
+        }
+
+        public void setRuleVersion(Integer ruleVersion) {
+<span class="fc" id="L363">            this.ruleVersion = ruleVersion;</span>
+<span class="fc" id="L364">        }</span>
+
+        public String getRuleVersionId() {
+<span class="nc" id="L367">            return ruleVersionId;</span>
+        }
+
+        public void setRuleVersionId(String ruleVersionId) {
+<span class="fc" id="L371">            this.ruleVersionId = ruleVersionId;</span>
+<span class="fc" id="L372">        }</span>
+
+        public Boolean getMatched() {
+<span class="nc" id="L375">            return matched;</span>
+        }
+
+        public void setMatched(Boolean matched) {
+<span class="fc" id="L379">            this.matched = matched;</span>
+<span class="fc" id="L380">        }</span>
+
+        public Boolean getContributing() {
+<span class="nc" id="L383">            return contributing;</span>
+        }
+
+        public void setContributing(Boolean contributing) {
+<span class="fc" id="L387">            this.contributing = contributing;</span>
+<span class="fc" id="L388">        }</span>
+    }
+
+    /**
+     * Represents the result of a velocity check.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class VelocityResult {
+
+        @JsonProperty(&quot;dimension&quot;)
+        private String dimension;
+
+        @JsonProperty(&quot;dimension_value&quot;)
+        private String dimensionValue;
+
+        @JsonProperty(&quot;count&quot;)
+        private long count;
+
+        @JsonProperty(&quot;threshold&quot;)
+        private int threshold;
+
+        @JsonProperty(&quot;window_seconds&quot;)
+        private int windowSeconds;
+
+        @JsonProperty(&quot;exceeded&quot;)
+        private boolean exceeded;
+
+        @JsonProperty(&quot;ttl_remaining&quot;)
+        private Long ttlRemaining;
+
+<span class="fc" id="L418">        public VelocityResult() {</span>
+<span class="fc" id="L419">        }</span>
+
+<span class="fc" id="L421">        public VelocityResult(String dimension, String dimensionValue, long count, int threshold, int windowSeconds) {</span>
+<span class="fc" id="L422">            this.dimension = dimension;</span>
+<span class="fc" id="L423">            this.dimensionValue = dimensionValue;</span>
+<span class="fc" id="L424">            this.count = count;</span>
+<span class="fc" id="L425">            this.threshold = threshold;</span>
+<span class="fc" id="L426">            this.windowSeconds = windowSeconds;</span>
+<span class="fc bfc" id="L427" title="All 2 branches covered.">            this.exceeded = count &gt;= threshold;</span>
+<span class="fc" id="L428">        }</span>
+
+        public String getDimension() {
+<span class="fc" id="L431">            return dimension;</span>
+        }
+
+        public void setDimension(String dimension) {
+<span class="fc" id="L435">            this.dimension = dimension;</span>
+<span class="fc" id="L436">        }</span>
+
+        public String getDimensionValue() {
+<span class="fc" id="L439">            return dimensionValue;</span>
+        }
+
+        public void setDimensionValue(String dimensionValue) {
+<span class="fc" id="L443">            this.dimensionValue = dimensionValue;</span>
+<span class="fc" id="L444">        }</span>
+
+        public long getCount() {
+<span class="fc" id="L447">            return count;</span>
+        }
+
+        public void setCount(long count) {
+<span class="fc" id="L451">            this.count = count;</span>
+<span class="pc bpc" id="L452" title="1 of 2 branches missed.">            this.exceeded = count &gt;= threshold;</span>
+<span class="fc" id="L453">        }</span>
+
+        public int getThreshold() {
+<span class="fc" id="L456">            return threshold;</span>
+        }
+
+        public void setThreshold(int threshold) {
+<span class="fc" id="L460">            this.threshold = threshold;</span>
+<span class="fc" id="L461">        }</span>
+
+        public int getWindowSeconds() {
+<span class="fc" id="L464">            return windowSeconds;</span>
+        }
+
+        public void setWindowSeconds(int windowSeconds) {
+<span class="fc" id="L468">            this.windowSeconds = windowSeconds;</span>
+<span class="fc" id="L469">        }</span>
+
+        public boolean isExceeded() {
+<span class="fc" id="L472">            return exceeded;</span>
+        }
+
+        public void setExceeded(boolean exceeded) {
+<span class="nc" id="L476">            this.exceeded = exceeded;</span>
+<span class="nc" id="L477">        }</span>
+
+        public Long getTtlRemaining() {
+<span class="fc" id="L480">            return ttlRemaining;</span>
+        }
+
+        public void setTtlRemaining(Long ttlRemaining) {
+<span class="fc" id="L484">            this.ttlRemaining = ttlRemaining;</span>
+<span class="fc" id="L485">        }</span>
+    }
+
+    /**
+     * Engine mode constants.
+     */
+    public static final String MODE_NORMAL = &quot;NORMAL&quot;;
+    public static final String MODE_DEGRADED = &quot;DEGRADED&quot;;
+    public static final String MODE_FAIL_OPEN = &quot;FAIL_OPEN&quot;;
+    public static final String MODE_REPLAY = &quot;REPLAY&quot;;
+
+    /**
+     * Decision constants.
+     */
+    public static final String DECISION_APPROVE = &quot;APPROVE&quot;;
+    public static final String DECISION_DECLINE = &quot;DECLINE&quot;;
+    public static final String DECISION_REVIEW = &quot;REVIEW&quot;;
+
+    /**
+     * Engine mode enum for type-safe mode handling.
+     */
+<span class="fc" id="L506">    public enum EngineMode {</span>
+<span class="fc" id="L507">        NORMAL,</span>
+<span class="fc" id="L508">        DEGRADED,</span>
+<span class="fc" id="L509">        FAIL_OPEN,</span>
+<span class="fc" id="L510">        REPLAY;</span>
+
+        /**
+         * Gets the string value for this mode.
+         */
+        public String getValue() {
+<span class="fc" id="L516">            return name();</span>
+        }
+
+        /**
+         * Creates an EngineMode from a string value.
+         */
+        public static EngineMode fromValue(String value) {
+<span class="pc bpc" id="L523" title="1 of 2 branches missed.">            if (value == null) {</span>
+<span class="nc" id="L524">                return null;</span>
+            }
+            try {
+<span class="fc" id="L527">                return EngineMode.valueOf(value.toUpperCase());</span>
+<span class="fc" id="L528">            } catch (IllegalArgumentException e) {</span>
+<span class="fc" id="L529">                return null;</span>
+            }
+        }
+    }
+
+    /**
+     * Decision type enum for type-safe decision handling.
+     */
+<span class="fc" id="L537">    public enum DecisionType {</span>
+<span class="fc" id="L538">        APPROVE,</span>
+<span class="fc" id="L539">        DECLINE,</span>
+<span class="fc" id="L540">        REVIEW;</span>
+
+        /**
+         * Gets the string value for this decision type.
+         */
+        public String getValue() {
+<span class="fc" id="L546">            return name();</span>
+        }
+
+        /**
+         * Creates a DecisionType from a string value.
+         */
+        public static DecisionType fromValue(String value) {
+<span class="pc bpc" id="L553" title="1 of 2 branches missed.">            if (value == null) {</span>
+<span class="nc" id="L554">                return null;</span>
+            }
+            try {
+<span class="fc" id="L557">                return DecisionType.valueOf(value.toUpperCase());</span>
+<span class="fc" id="L558">            } catch (IllegalArgumentException e) {</span>
+<span class="fc" id="L559">                return null;</span>
+            }
+        }
+    }
+
+    /**
+     * Evaluation type enum for type-safe evaluation type handling.
+     */
+<span class="fc" id="L567">    public enum EvaluationType {</span>
+<span class="fc" id="L568">        AUTH,</span>
+<span class="fc" id="L569">        MONITORING,</span>
+<span class="fc" id="L570">        REPLAY;</span>
+
+        /**
+         * Gets the string value for this evaluation type.
+         */
+        public String getValue() {
+<span class="fc" id="L576">            return name();</span>
+        }
+
+        /**
+         * Creates an EvaluationType from a string value.
+         */
+        public static EvaluationType fromValue(String value) {
+<span class="pc bpc" id="L583" title="1 of 2 branches missed.">            if (value == null) {</span>
+<span class="nc" id="L584">                return null;</span>
+            }
+            try {
+<span class="fc" id="L587">                return EvaluationType.valueOf(value.toUpperCase());</span>
+<span class="fc" id="L588">            } catch (IllegalArgumentException e) {</span>
+<span class="fc" id="L589">                return null;</span>
+            }
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

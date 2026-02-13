@@ -1,0 +1,286 @@
+# Card Fraud Rule Engine Configuration
+# All configuration is managed via Doppler secrets
+
+quarkus:
+  application:
+    name: card-fraud-rule-engine
+
+  # HTTP Configuration
+  http:
+    port: 8081
+    host: 0.0.0.0
+    limits:
+      max-body-size: 1M
+    # HTTP/2 support for improved throughput
+    version: 2.0  # Enable HTTP/2
+    # Enable HTTP/2 with ALPN for TLS connections
+    # Note: HTTP/2 is available over plain HTTP for development
+    # For production, use TLS for true HTTP/2 with ALPN
+    # IO thread pool for request handling
+    io-threads: ${HTTP_IO_THREADS:32}  # Increased from default 8*cores
+
+  # Thread pool configuration for blocking operations
+  thread-pool:
+    max-threads: ${THREAD_POOL_MAX_THREADS:20}  # Correct Quarkus 3.x property (was vertx.worker-pool-size)
+
+  # Vert.x configuration
+  vertx:
+    max-worker-execute-time: 30s
+
+  # Redis Configuration (via environment - Doppler)
+  redis:
+    hosts: ${REDIS_URL:redis://localhost:6379}
+    # Connection pool tuning (morning test: 20/100 achieved P50=83ms)
+    # Default: maxPoolSize=6, maxWaitingHandlers=2048
+    max-pool-size: ${REDIS_MAX_POOL_SIZE:20}  # Morning baseline value
+    max-waiting-handlers: ${REDIS_MAX_WAITING_HANDLERS:100}  # Morning baseline value
+    # Connection timeout (milliseconds)
+    timeout: ${REDIS_TIMEOUT:5s}
+    # Protocol version (RESP3 is faster)
+    protocol: ${REDIS_PROTOCOL:RESP3}
+
+  # Kafka Configuration (via environment - Doppler)
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  # Logging - Use INFO by default, DEBUG only for specific categories
+  log:
+    level: INFO
+    console:
+      format: "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%c{3.}] (%t) %s%e%n"
+    category:
+      "com.fraud.engine":
+        level: INFO  # Changed from DEBUG to reduce overhead
+      "io.quarkus.redis":
+        level: WARN
+      "io.vertx":
+        level: WARN
+
+  # Health and OpenAPI
+  smallrye-health:
+    root-path: /health
+  swagger-ui:
+    always-include: false
+    path: /swagger-ui
+  openapi:
+    path: /openapi
+    info-title: Card Fraud Rule Engine API
+    info-version: 1.0.0
+    info-description: Stateless runtime decision engine for AUTH/MONITORING evaluation
+
+# S3 / MinIO Configuration (shared with rule-management)
+s3:
+  endpoint-url: ${S3_ENDPOINT_URL:http://localhost:9000}
+  aws:
+    region: ${S3_REGION:us-east-1}
+    credentials:
+      static-provider:
+        access-key-id: ${S3_ACCESS_KEY_ID}
+        secret-access-key: ${S3_SECRET_ACCESS_KEY}
+
+# Application-specific Configuration
+app:
+  # JSON Serialization
+  # jsoniter is DISABLED by default due to Java 17 module system incompatibility:
+  # - InaccessibleObjectException when serializing java.time.Instant fields
+  # - Requires --add-opens JVM flags (not recommended for production)
+  # - Not natively supported by Quarkus
+  #
+  # Current solution: Jackson + Blackbird (20-30% faster serialization)
+  # Future: Retry jsoniter when Java 17 support is added
+  jsoniter:
+    enabled: ${JSONITER_ENABLED:false}
+
+  load-shedding:
+    enabled: ${LOAD_SHEDDING_ENABLED:true}
+    max-concurrent: ${LOAD_SHEDDING_MAX_CONCURRENT:100}
+  ruleset:
+    bucket: ${S3_BUCKET_NAME:fraud-gov-artifacts}
+    path-prefix: rulesets/
+    yaml-fallback-enabled: false
+    environment: ${RULESET_ENVIRONMENT:local}
+    # Startup ruleset loading - pre-loads rulesets at application startup
+    startup:
+      load-enabled: ${RULESET_STARTUP_LOAD_ENABLED:false}
+      rulesets: ${RULESET_STARTUP_RULESETS:CARD_AUTH,CARD_MONITORING}
+      fail-fast: ${RULESET_STARTUP_FAIL_FAST:false}
+      environment: ${RULESET_STARTUP_ENVIRONMENT:local}
+    # Auto-reload configuration
+    auto-reload:
+      enabled: ${RULESET_AUTO_RELOAD_ENABLED:false}
+      interval-seconds: ${RULESET_AUTO_RELOAD_INTERVAL_SECONDS:60}
+  field-registry:
+    path-prefix: fields/
+    poll-interval-seconds: ${FIELD_REGISTRY_POLL_INTERVAL_SECONDS:30}
+    enable-hot-reload: ${FIELD_REGISTRY_HOT_RELOAD:true}
+  startup:
+    validation:
+      enabled: ${STARTUP_VALIDATION:true}
+  hot-reload:
+    poll-interval-seconds: ${HOT_RELOAD_POLL_INTERVAL_SECONDS:30}
+  velocity:
+    default-window-seconds: 3600
+    default-threshold: 10
+  decision:
+    fail-open: true
+    default-decision: APPROVE
+  outbox:
+    mode: ${OUTBOX_MODE:redis}
+    stream-key: ${OUTBOX_STREAM_KEY:fraud:outbox}
+    consumer-group: ${OUTBOX_CONSUMER_GROUP:auth-monitoring-worker}
+    consumer-name: ${OUTBOX_CONSUMER_NAME:auto}
+    maxlen: ${OUTBOX_MAXLEN:200000}
+    read-count: ${OUTBOX_READ_COUNT:50}
+    block-ms: ${OUTBOX_BLOCK_MS:2000}
+    redis-timeout-seconds: ${OUTBOX_REDIS_TIMEOUT_SECONDS:5}
+    pending-claim-min-idle-ms: ${OUTBOX_PENDING_CLAIM_MIN_IDLE_MS:60000}
+    pending-claim-count: ${OUTBOX_PENDING_CLAIM_COUNT:50}
+    pending-summary-interval-ms: ${OUTBOX_PENDING_SUMMARY_INTERVAL_MS:5000}
+    worker:
+      enabled: ${OUTBOX_WORKER_ENABLED:false}
+    auth-publisher:
+      enabled: ${OUTBOX_AUTH_PUBLISHER_ENABLED:true}
+      poll-interval-ms: ${OUTBOX_AUTH_PUBLISHER_POLL_INTERVAL_MS:50}
+
+  auth:
+    async-durability:
+      enabled: ${AUTH_ASYNC_DURABILITY_ENABLED:true}
+      queue-capacity: ${AUTH_ASYNC_DURABILITY_QUEUE_CAPACITY:10000}
+      poll-interval-ms: ${AUTH_ASYNC_DURABILITY_POLL_INTERVAL_MS:5}
+
+# Messaging - Decision Events
+mp:
+  messaging:
+    outgoing:
+      decision-events:
+        connector: smallrye-kafka
+        topic: fraud.card.decisions.v1
+        bootstrap.servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+        key.serializer: org.apache.kafka.common.serialization.StringSerializer
+        value.serializer: org.apache.kafka.common.serialization.StringSerializer
+        # Producer optimization for outbox worker (idempotent + durable)
+        enable.idempotence: true
+        acks: all
+        max.in.flight.requests.per.connection: 5
+        batch.size: 16384
+        linger.ms: 5
+        compression.type: lz4
+        delivery.timeout.ms: 15000
+        retries: 2147483647
+        retry.backoff.ms: 50
+
+# Profile-specific overrides
+"%dev":
+  quarkus:
+    log:
+      level: DEBUG
+    http:
+      port: 8081
+    smallrye-fault-tolerance:
+      enabled: false
+    devservices:
+      enabled: false  # Disable dev services, use our docker-compose infra
+    swagger-ui:
+      always-include: true
+  smallrye:
+    faulttolerance:
+      enabled: false
+  mp:
+    fault:
+      tolerance:
+        enabled: false
+
+"%prod":
+  quarkus:
+    log:
+      level: WARN
+      console:
+        enable: true  # Enable console logging for stdout-based collectors (Docker/K8s/Fluentd)
+        format: "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%c{3.}] (%t) %s%e%n"
+      console-json:
+        enable: false  # Set to true for JSON format (when log collector supports it)
+    http:
+      port: 8081
+  app:
+    ruleset:
+      startup:
+        load-enabled: true  # Enable startup loading in production
+        fail-fast: true
+
+"%test":
+  quarkus:
+    redis:
+      hosts: redis://localhost:6379
+    kafka:
+      bootstrap-servers: localhost:9092
+    smallrye-fault-tolerance:
+      enabled: false
+  smallrye:
+    faulttolerance:
+      enabled: false
+  mp:
+    fault:
+      tolerance:
+        enabled: false
+    # Messaging config for test mode
+    messaging:
+      outgoing:
+        decision-events:
+          connector: smallrye-kafka
+          topic: fraud.card.decisions.v1
+          bootstrap.servers: localhost:9092
+          key.serializer: org.apache.kafka.common.serialization.StringSerializer
+          value.serializer: org.apache.kafka.common.serialization.StringSerializer
+          # Producer optimization (mirror prod)
+          enable.idempotence: true
+          acks: all
+          max.in.flight.requests.per.connection: 5
+          batch.size: 16384
+          linger.ms: 5
+          compression.type: lz4
+          delivery.timeout.ms: 15000
+          retries: 2147483647
+          retry.backoff.ms: 50
+  app:
+    outbox:
+      mode: in-memory
+
+# Load Test Profile
+"%load-test":
+  quarkus:
+    log:
+      level: WARN
+      category:
+        "com.fraud.engine":
+          level: WARN  # Suppress hot-path logging for throughput
+    swagger-ui:
+      always-include: false
+  app:
+    load-shedding:
+      enabled: false  # Disable load shedding for load tests to measure true capacity
+    ruleset:
+      startup:
+        load-enabled: false  # Disable startup loading for load tests
+        fail-fast: false
+    outbox:
+      worker:
+        enabled: false  # Disable monitoring worker for AUTH-only perf runs
+  mp:
+    messaging:
+      outgoing:
+        decision-events:
+          connector: smallrye-kafka
+          topic: fraud.card.decisions.v1
+          bootstrap.servers: localhost:9092
+          key.serializer: org.apache.kafka.common.serialization.StringSerializer
+          value.serializer: org.apache.kafka.common.serialization.StringSerializer
+          # Producer optimization (mirror durable settings)
+          enable.idempotence: true
+          acks: all
+          max.in.flight.requests.per.connection: 5
+          batch.size: 16384
+          linger.ms: 5
+          compression.type: lz4
+          delivery.timeout.ms: 15000
+          retries: 2147483647
+          retry.backoff.ms: 50

@@ -1,0 +1,646 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TransactionContext.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.domain</a> &gt; <span class="el_source">TransactionContext.java</span></div><h1>TransactionContext.java</h1><pre class="source lang-java linenums">package com.fraud.engine.domain;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Represents a transaction to be evaluated by the rule engine.
+ *
+ * &lt;p&gt;Contains all the data fields that rules can evaluate against.
+ * Standard fields are defined, but additional custom fields can be added.
+ *
+ * &lt;p&gt;&lt;b&gt;Performance Optimization:&lt;/b&gt; Fields are stored in an Object array for O(1)
+ * direct access without HashMap overhead. The individual field properties are maintained
+ * for Jackson deserialization compatibility and backward compatibility.
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class TransactionContext {
+
+    // ========== Field ID Constants ==========
+    // These constants provide zero-allocation field access via the array.
+    // They reference the centralized FieldRegistry for single source of truth.
+
+    /** Field ID for transaction_id */
+    public static final int F_TRANSACTION_ID = FieldRegistry.TRANSACTION_ID;
+
+    /** Field ID for card_hash */
+    public static final int F_CARD_HASH = FieldRegistry.CARD_HASH;
+
+    /** Field ID for amount */
+    public static final int F_AMOUNT = FieldRegistry.AMOUNT;
+
+    /** Field ID for currency */
+    public static final int F_CURRENCY = FieldRegistry.CURRENCY;
+
+    /** Field ID for merchant_id */
+    public static final int F_MERCHANT_ID = FieldRegistry.MERCHANT_ID;
+
+    /** Field ID for merchant_name */
+    public static final int F_MERCHANT_NAME = FieldRegistry.MERCHANT_NAME;
+
+    /** Field ID for merchant_category */
+    public static final int F_MERCHANT_CATEGORY = FieldRegistry.MERCHANT_CATEGORY;
+
+    /** Field ID for merchant_category_code */
+    public static final int F_MERCHANT_CATEGORY_CODE = FieldRegistry.MERCHANT_CATEGORY_CODE;
+
+    /** Field ID for card_present */
+    public static final int F_CARD_PRESENT = FieldRegistry.CARD_PRESENT;
+
+    /** Field ID for transaction_type */
+    public static final int F_TRANSACTION_TYPE = FieldRegistry.TRANSACTION_TYPE;
+
+    /** Field ID for entry_mode */
+    public static final int F_ENTRY_MODE = FieldRegistry.ENTRY_MODE;
+
+    /** Field ID for country_code */
+    public static final int F_COUNTRY_CODE = FieldRegistry.COUNTRY_CODE;
+
+    /** Field ID for ip_address */
+    public static final int F_IP_ADDRESS = FieldRegistry.IP_ADDRESS;
+
+    /** Field ID for device_id */
+    public static final int F_DEVICE_ID = FieldRegistry.DEVICE_ID;
+
+    /** Field ID for email */
+    public static final int F_EMAIL = FieldRegistry.EMAIL;
+
+    /** Field ID for phone */
+    public static final int F_PHONE = FieldRegistry.PHONE;
+
+    /** Field ID for timestamp */
+    public static final int F_TIMESTAMP = FieldRegistry.TIMESTAMP;
+
+    /** Field ID for billing_city */
+    public static final int F_BILLING_CITY = FieldRegistry.BILLING_CITY;
+
+    /** Field ID for billing_country */
+    public static final int F_BILLING_COUNTRY = FieldRegistry.BILLING_COUNTRY;
+
+    /** Field ID for billing_postal_code */
+    public static final int F_BILLING_POSTAL_CODE = FieldRegistry.BILLING_POSTAL_CODE;
+
+    /** Field ID for shipping_city */
+    public static final int F_SHIPPING_CITY = FieldRegistry.SHIPPING_CITY;
+
+    /** Field ID for shipping_country */
+    public static final int F_SHIPPING_COUNTRY = FieldRegistry.SHIPPING_COUNTRY;
+
+    /** Field ID for shipping_postal_code */
+    public static final int F_SHIPPING_POSTAL_CODE = FieldRegistry.SHIPPING_POSTAL_CODE;
+
+    /** Field ID for card_network (for scope-based routing) */
+    public static final int F_CARD_NETWORK = FieldRegistry.CARD_NETWORK;
+
+    /** Field ID for card_bin (for scope-based routing) */
+    public static final int F_CARD_BIN = FieldRegistry.CARD_BIN;
+
+    /** Field ID for card_logo (for scope-based routing) */
+    public static final int F_CARD_LOGO = FieldRegistry.CARD_LOGO;
+
+    /** Number of standard fields */
+    public static final int F_COUNT = FieldRegistry.FIELD_COUNT;
+
+    // ========== Properties (for Jackson deserialization) ==========
+
+    @JsonProperty(&quot;transaction_id&quot;)
+    private String transactionId;
+
+    @JsonProperty(&quot;card_hash&quot;)
+    private String cardHash;
+
+    @JsonProperty(&quot;amount&quot;)
+    private BigDecimal amount;
+
+    @JsonProperty(&quot;currency&quot;)
+    private String currency;
+
+    @JsonProperty(&quot;merchant_id&quot;)
+    private String merchantId;
+
+    @JsonProperty(&quot;merchant_name&quot;)
+    private String merchantName;
+
+    @JsonProperty(&quot;merchant_category&quot;)
+    private String merchantCategory;
+
+    @JsonProperty(&quot;merchant_category_code&quot;)
+    private String merchantCategoryCode;
+
+    @JsonProperty(&quot;card_present&quot;)
+    private Boolean cardPresent;
+
+    @JsonProperty(&quot;transaction_type&quot;)
+    private String transactionType;
+
+    @JsonProperty(&quot;entry_mode&quot;)
+    private String entryMode;
+
+    @JsonProperty(&quot;country_code&quot;)
+    private String countryCode;
+
+    @JsonProperty(&quot;ip_address&quot;)
+    private String ipAddress;
+
+    @JsonProperty(&quot;device_id&quot;)
+    private String deviceId;
+
+    @JsonProperty(&quot;email&quot;)
+    private String email;
+
+    @JsonProperty(&quot;phone&quot;)
+    private String phone;
+
+    @JsonProperty(&quot;billing_address&quot;)
+    private Address billingAddress;
+
+    @JsonProperty(&quot;shipping_address&quot;)
+    private Address shippingAddress;
+
+    @JsonProperty(&quot;timestamp&quot;)
+    private String timestampRaw;
+
+    // Lazily parsed from timestampRaw only when getTimestamp() is called.
+    private transient Instant timestamp;
+
+    @JsonProperty(&quot;decision&quot;)
+    private String decision;
+
+    // Scope-related fields for rule bucketing
+    @JsonProperty(&quot;card_network&quot;)
+    private String cardNetwork;
+
+    @JsonProperty(&quot;card_bin&quot;)
+    private String cardBin;
+
+    @JsonProperty(&quot;card_logo&quot;)
+    private String cardLogo;
+
+    @JsonProperty(&quot;custom_fields&quot;)
+    private Map&lt;String, Object&gt; customFields;
+
+    // ========== Fast Access Array ==========
+    // Fixed-size array for O(1) field access without HashMap overhead.
+    // This is indexed by the F_* constants above.
+    // Transient means it won't be serialized by Jackson (we use properties instead).
+    private transient Object[] fields;
+
+    // ========== Constructor ==========
+
+<span class="fc" id="L196">    public TransactionContext() {</span>
+        // Initialize array with fixed size
+<span class="fc" id="L198">        this.fields = new Object[F_COUNT];</span>
+<span class="fc" id="L199">    }</span>
+
+    // ========== Fast Field Access ==========
+
+    /**
+     * Gets a field value by field ID (O(1) array access).
+     * &lt;p&gt;This is the preferred method for high-performance rule evaluation.
+     * Field IDs start from 1, so we subtract 1 for array indexing.
+     *
+     * @param fieldId the field ID (e.g., F_CARD_HASH, F_AMOUNT)
+     * @return the field value, or null if not set
+     */
+    public Object getField(int fieldId) {
+<span class="fc bfc" id="L212" title="All 4 branches covered.">        if (fieldId &gt;= 1 &amp;&amp; fieldId &lt; F_COUNT) {</span>
+<span class="fc" id="L213">            return fields[fieldId - 1];</span>
+        }
+<span class="fc" id="L215">        return null;</span>
+    }
+
+    /**
+     * Sets a field value by field ID.
+     * Field IDs start from 1, so we subtract 1 for array indexing.
+     *
+     * @param fieldId the field ID (e.g., F_CARD_HASH, F_AMOUNT)
+     * @param value the value to set
+     */
+    public void setField(int fieldId, Object value) {
+<span class="pc bpc" id="L226" title="1 of 4 branches missed.">        if (fieldId &gt;= 1 &amp;&amp; fieldId &lt; F_COUNT) {</span>
+<span class="nc" id="L227">            fields[fieldId - 1] = value;</span>
+        }
+<span class="fc" id="L229">    }</span>
+
+    // ========== Getters/Setters (backed by array + properties) ==========
+
+    public String getTransactionId() {
+<span class="fc" id="L234">        return transactionId;</span>
+    }
+
+    public void setTransactionId(String transactionId) {
+<span class="fc" id="L238">        this.transactionId = transactionId;</span>
+<span class="fc" id="L239">        this.fields[F_TRANSACTION_ID - 1] =transactionId;</span>
+<span class="fc" id="L240">    }</span>
+
+    public String getCardHash() {
+<span class="fc" id="L243">        return cardHash;</span>
+    }
+
+    public void setCardHash(String cardHash) {
+<span class="fc" id="L247">        this.cardHash = cardHash;</span>
+<span class="fc" id="L248">        this.fields[F_CARD_HASH - 1] =cardHash;</span>
+<span class="fc" id="L249">    }</span>
+
+    public BigDecimal getAmount() {
+<span class="fc" id="L252">        return amount;</span>
+    }
+
+    public void setAmount(BigDecimal amount) {
+<span class="fc" id="L256">        this.amount = amount;</span>
+<span class="fc" id="L257">        this.fields[F_AMOUNT - 1] =amount;</span>
+<span class="fc" id="L258">    }</span>
+
+    public String getCurrency() {
+<span class="fc" id="L261">        return currency;</span>
+    }
+
+    public void setCurrency(String currency) {
+<span class="fc" id="L265">        this.currency = currency;</span>
+<span class="fc" id="L266">        this.fields[F_CURRENCY - 1] =currency;</span>
+<span class="fc" id="L267">    }</span>
+
+    public String getMerchantId() {
+<span class="fc" id="L270">        return merchantId;</span>
+    }
+
+    public void setMerchantId(String merchantId) {
+<span class="fc" id="L274">        this.merchantId = merchantId;</span>
+<span class="fc" id="L275">        this.fields[F_MERCHANT_ID - 1] =merchantId;</span>
+<span class="fc" id="L276">    }</span>
+
+    public String getMerchantName() {
+<span class="fc" id="L279">        return merchantName;</span>
+    }
+
+    public void setMerchantName(String merchantName) {
+<span class="fc" id="L283">        this.merchantName = merchantName;</span>
+<span class="fc" id="L284">        this.fields[F_MERCHANT_NAME - 1] =merchantName;</span>
+<span class="fc" id="L285">    }</span>
+
+    public String getMerchantCategory() {
+<span class="fc" id="L288">        return merchantCategory;</span>
+    }
+
+    public void setMerchantCategory(String merchantCategory) {
+<span class="fc" id="L292">        this.merchantCategory = merchantCategory;</span>
+<span class="fc" id="L293">        this.fields[F_MERCHANT_CATEGORY - 1] =merchantCategory;</span>
+<span class="fc" id="L294">    }</span>
+
+    public String getMerchantCategoryCode() {
+<span class="fc" id="L297">        return merchantCategoryCode;</span>
+    }
+
+    public void setMerchantCategoryCode(String merchantCategoryCode) {
+<span class="fc" id="L301">        this.merchantCategoryCode = merchantCategoryCode;</span>
+<span class="fc" id="L302">        this.fields[F_MERCHANT_CATEGORY_CODE - 1] =merchantCategoryCode;</span>
+<span class="fc" id="L303">    }</span>
+
+    public Boolean getCardPresent() {
+<span class="fc" id="L306">        return cardPresent;</span>
+    }
+
+    public void setCardPresent(Boolean cardPresent) {
+<span class="fc" id="L310">        this.cardPresent = cardPresent;</span>
+<span class="fc" id="L311">        this.fields[F_CARD_PRESENT - 1] =cardPresent;</span>
+<span class="fc" id="L312">    }</span>
+
+    public String getTransactionType() {
+<span class="fc" id="L315">        return transactionType;</span>
+    }
+
+    public void setTransactionType(String transactionType) {
+<span class="fc" id="L319">        this.transactionType = transactionType;</span>
+<span class="fc" id="L320">        this.fields[F_TRANSACTION_TYPE - 1] =transactionType;</span>
+<span class="fc" id="L321">    }</span>
+
+    public String getEntryMode() {
+<span class="fc" id="L324">        return entryMode;</span>
+    }
+
+    public void setEntryMode(String entryMode) {
+<span class="fc" id="L328">        this.entryMode = entryMode;</span>
+<span class="fc" id="L329">        this.fields[F_ENTRY_MODE - 1] =entryMode;</span>
+<span class="fc" id="L330">    }</span>
+
+    public String getCountryCode() {
+<span class="fc" id="L333">        return countryCode;</span>
+    }
+
+    public void setCountryCode(String countryCode) {
+<span class="fc" id="L337">        this.countryCode = countryCode;</span>
+<span class="fc" id="L338">        this.fields[F_COUNTRY_CODE - 1] =countryCode;</span>
+<span class="fc" id="L339">    }</span>
+
+    public String getIpAddress() {
+<span class="fc" id="L342">        return ipAddress;</span>
+    }
+
+    public void setIpAddress(String ipAddress) {
+<span class="fc" id="L346">        this.ipAddress = ipAddress;</span>
+<span class="fc" id="L347">        this.fields[F_IP_ADDRESS - 1] =ipAddress;</span>
+<span class="fc" id="L348">    }</span>
+
+    public String getDeviceId() {
+<span class="fc" id="L351">        return deviceId;</span>
+    }
+
+    public void setDeviceId(String deviceId) {
+<span class="fc" id="L355">        this.deviceId = deviceId;</span>
+<span class="fc" id="L356">        this.fields[F_DEVICE_ID - 1] =deviceId;</span>
+<span class="fc" id="L357">    }</span>
+
+    public String getEmail() {
+<span class="fc" id="L360">        return email;</span>
+    }
+
+    public void setEmail(String email) {
+<span class="fc" id="L364">        this.email = email;</span>
+<span class="fc" id="L365">        this.fields[F_EMAIL - 1] =email;</span>
+<span class="fc" id="L366">    }</span>
+
+    public String getPhone() {
+<span class="fc" id="L369">        return phone;</span>
+    }
+
+    public void setPhone(String phone) {
+<span class="fc" id="L373">        this.phone = phone;</span>
+<span class="fc" id="L374">        this.fields[F_PHONE - 1] = phone;</span>
+<span class="fc" id="L375">    }</span>
+
+    // ========== Scope Fields (for rule bucketing) ==========
+
+    /**
+     * Gets the card network (e.g., VISA, MASTERCARD, AMEX).
+     * Used for scope-based rule bucketing.
+     */
+    public String getCardNetwork() {
+<span class="fc" id="L384">        return cardNetwork;</span>
+    }
+
+    public void setCardNetwork(String cardNetwork) {
+<span class="fc" id="L388">        this.cardNetwork = cardNetwork;</span>
+<span class="fc" id="L389">        this.fields[F_CARD_NETWORK - 1] = cardNetwork;</span>
+<span class="fc" id="L390">    }</span>
+
+    /**
+     * Gets the card BIN (Bank Identification Number).
+     * Typically the first 6-8 digits of the card number.
+     * Used for scope-based rule bucketing.
+     */
+    public String getCardBin() {
+<span class="fc" id="L398">        return cardBin;</span>
+    }
+
+    public void setCardBin(String cardBin) {
+<span class="fc" id="L402">        this.cardBin = cardBin;</span>
+<span class="fc" id="L403">        this.fields[F_CARD_BIN - 1] =cardBin;</span>
+<span class="fc" id="L404">    }</span>
+
+    /**
+     * Gets the card logo/brand.
+     * Used for scope-based rule bucketing (especially for co-branded cards).
+     */
+    public String getCardLogo() {
+<span class="fc" id="L411">        return cardLogo;</span>
+    }
+
+    public void setCardLogo(String cardLogo) {
+<span class="fc" id="L415">        this.cardLogo = cardLogo;</span>
+<span class="fc" id="L416">        this.fields[F_CARD_LOGO - 1] =cardLogo;</span>
+<span class="fc" id="L417">    }</span>
+
+    public Address getBillingAddress() {
+<span class="fc" id="L420">        return billingAddress;</span>
+    }
+
+    public void setBillingAddress(Address billingAddress) {
+<span class="fc" id="L424">        this.billingAddress = billingAddress;</span>
+        // Extract address fields into array for fast access
+<span class="pc bpc" id="L426" title="1 of 2 branches missed.">        if (billingAddress != null) {</span>
+<span class="fc" id="L427">            this.fields[F_BILLING_CITY - 1] = billingAddress.getCity();</span>
+<span class="fc" id="L428">            this.fields[F_BILLING_COUNTRY - 1] = billingAddress.getCountry();</span>
+<span class="fc" id="L429">            this.fields[F_BILLING_POSTAL_CODE - 1] = billingAddress.getPostalCode();</span>
+        }
+<span class="fc" id="L431">    }</span>
+
+    public Address getShippingAddress() {
+<span class="fc" id="L434">        return shippingAddress;</span>
+    }
+
+    public void setShippingAddress(Address shippingAddress) {
+<span class="fc" id="L438">        this.shippingAddress = shippingAddress;</span>
+        // Extract address fields into array for fast access
+<span class="pc bpc" id="L440" title="1 of 2 branches missed.">        if (shippingAddress != null) {</span>
+<span class="fc" id="L441">            this.fields[F_SHIPPING_CITY - 1] = shippingAddress.getCity();</span>
+<span class="fc" id="L442">            this.fields[F_SHIPPING_COUNTRY - 1] = shippingAddress.getCountry();</span>
+<span class="fc" id="L443">            this.fields[F_SHIPPING_POSTAL_CODE - 1] = shippingAddress.getPostalCode();</span>
+        }
+<span class="fc" id="L445">    }</span>
+
+    @JsonIgnore
+    public Instant getTimestamp() {
+<span class="pc bpc" id="L449" title="1 of 4 branches missed.">        if (timestamp == null &amp;&amp; timestampRaw != null) {</span>
+<span class="fc" id="L450">            timestamp = Instant.parse(timestampRaw);</span>
+        }
+<span class="fc" id="L452">        return timestamp;</span>
+    }
+
+    public void setTimestamp(Instant timestamp) {
+<span class="fc" id="L456">        this.timestamp = timestamp;</span>
+<span class="pc bpc" id="L457" title="1 of 2 branches missed.">        this.timestampRaw = timestamp != null ? timestamp.toString() : null;</span>
+<span class="fc" id="L458">        this.fields[F_TIMESTAMP - 1] = this.timestampRaw;</span>
+<span class="fc" id="L459">    }</span>
+
+    @JsonProperty(&quot;timestamp&quot;)
+    public String getTimestampRaw() {
+<span class="fc" id="L463">        return timestampRaw;</span>
+    }
+
+    @JsonProperty(&quot;timestamp&quot;)
+    public void setTimestampRaw(String timestampRaw) {
+<span class="fc" id="L468">        this.timestampRaw = timestampRaw;</span>
+<span class="fc" id="L469">        this.timestamp = null;</span>
+<span class="fc" id="L470">        this.fields[F_TIMESTAMP - 1] = timestampRaw;</span>
+<span class="fc" id="L471">    }</span>
+
+    public String getDecision() {
+<span class="fc" id="L474">        return decision;</span>
+    }
+
+    public void setDecision(String decision) {
+<span class="fc" id="L478">        this.decision = decision;</span>
+<span class="fc" id="L479">    }</span>
+
+    public Map&lt;String, Object&gt; getCustomFields() {
+<span class="fc bfc" id="L482" title="All 2 branches covered.">        if (customFields == null) {</span>
+<span class="fc" id="L483">            customFields = new HashMap&lt;&gt;();</span>
+        }
+<span class="fc" id="L485">        return customFields;</span>
+    }
+
+    /**
+     * Returns custom fields without forcing allocation.
+     * Intended for hot paths that only need to check whether custom fields exist.
+     */
+    public Map&lt;String, Object&gt; getCustomFieldsIfPresent() {
+<span class="fc" id="L493">        return customFields;</span>
+    }
+
+    public void setCustomFields(Map&lt;String, Object&gt; customFields) {
+<span class="fc" id="L497">        this.customFields = customFields;</span>
+<span class="fc" id="L498">    }</span>
+
+    public void addCustomField(String key, Object value) {
+<span class="fc" id="L501">        getCustomFields().put(key, value);</span>
+<span class="fc" id="L502">    }</span>
+
+    // ========== Legacy Method (for backward compatibility) ==========
+
+    /**
+     * Converts this transaction to a flat map for rule evaluation.
+     * &lt;p&gt;&lt;b&gt;Deprecated:&lt;/b&gt; This method creates a new HashMap on each call.
+     * Use {@link #getField(int)} instead for O(1) access without allocations.
+     *
+     * @return a map containing all field values
+     */
+    @Deprecated
+    public Map&lt;String, Object&gt; toEvaluationContext() {
+<span class="fc" id="L515">        Map&lt;String, Object&gt; context = new HashMap&lt;&gt;(32); // Pre-size to avoid resizing</span>
+
+        // Standard fields - field IDs start from 1, so we subtract 1 for array access
+<span class="fc bfc" id="L518" title="All 2 branches covered.">        if (fields[F_TRANSACTION_ID - 1] != null) context.put(&quot;transaction_id&quot;, fields[F_TRANSACTION_ID - 1]);</span>
+<span class="fc bfc" id="L519" title="All 2 branches covered.">        if (fields[F_CARD_HASH - 1] != null) context.put(&quot;card_hash&quot;, fields[F_CARD_HASH - 1]);</span>
+<span class="fc bfc" id="L520" title="All 2 branches covered.">        if (fields[F_AMOUNT - 1] != null) context.put(&quot;amount&quot;, fields[F_AMOUNT - 1]);</span>
+<span class="fc bfc" id="L521" title="All 2 branches covered.">        if (fields[F_CURRENCY - 1] != null) context.put(&quot;currency&quot;, fields[F_CURRENCY - 1]);</span>
+<span class="fc bfc" id="L522" title="All 2 branches covered.">        if (fields[F_MERCHANT_ID - 1] != null) context.put(&quot;merchant_id&quot;, fields[F_MERCHANT_ID - 1]);</span>
+<span class="fc bfc" id="L523" title="All 2 branches covered.">        if (fields[F_MERCHANT_NAME - 1] != null) context.put(&quot;merchant_name&quot;, fields[F_MERCHANT_NAME - 1]);</span>
+<span class="fc bfc" id="L524" title="All 2 branches covered.">        if (fields[F_MERCHANT_CATEGORY - 1] != null) context.put(&quot;merchant_category&quot;, fields[F_MERCHANT_CATEGORY - 1]);</span>
+<span class="fc bfc" id="L525" title="All 2 branches covered.">        if (fields[F_MERCHANT_CATEGORY_CODE - 1] != null) context.put(&quot;merchant_category_code&quot;, fields[F_MERCHANT_CATEGORY_CODE - 1]);</span>
+<span class="fc bfc" id="L526" title="All 2 branches covered.">        if (fields[F_CARD_PRESENT - 1] != null) context.put(&quot;card_present&quot;, fields[F_CARD_PRESENT - 1]);</span>
+<span class="fc bfc" id="L527" title="All 2 branches covered.">        if (fields[F_TRANSACTION_TYPE - 1] != null) context.put(&quot;transaction_type&quot;, fields[F_TRANSACTION_TYPE - 1]);</span>
+<span class="fc bfc" id="L528" title="All 2 branches covered.">        if (fields[F_ENTRY_MODE - 1] != null) context.put(&quot;entry_mode&quot;, fields[F_ENTRY_MODE - 1]);</span>
+<span class="fc bfc" id="L529" title="All 2 branches covered.">        if (fields[F_COUNTRY_CODE - 1] != null) context.put(&quot;country_code&quot;, fields[F_COUNTRY_CODE - 1]);</span>
+<span class="fc bfc" id="L530" title="All 2 branches covered.">        if (fields[F_IP_ADDRESS - 1] != null) context.put(&quot;ip_address&quot;, fields[F_IP_ADDRESS - 1]);</span>
+<span class="fc bfc" id="L531" title="All 2 branches covered.">        if (fields[F_DEVICE_ID - 1] != null) context.put(&quot;device_id&quot;, fields[F_DEVICE_ID - 1]);</span>
+<span class="fc bfc" id="L532" title="All 2 branches covered.">        if (fields[F_EMAIL - 1] != null) context.put(&quot;email&quot;, fields[F_EMAIL - 1]);</span>
+<span class="fc bfc" id="L533" title="All 2 branches covered.">        if (fields[F_PHONE - 1] != null) context.put(&quot;phone&quot;, fields[F_PHONE - 1]);</span>
+<span class="fc bfc" id="L534" title="All 2 branches covered.">        if (fields[F_TIMESTAMP - 1] != null) context.put(&quot;timestamp&quot;, fields[F_TIMESTAMP - 1]);</span>
+<span class="fc bfc" id="L535" title="All 2 branches covered.">        if (fields[F_BILLING_CITY - 1] != null) context.put(&quot;billing_city&quot;, fields[F_BILLING_CITY - 1]);</span>
+<span class="fc bfc" id="L536" title="All 2 branches covered.">        if (fields[F_BILLING_COUNTRY - 1] != null) context.put(&quot;billing_country&quot;, fields[F_BILLING_COUNTRY - 1]);</span>
+<span class="fc bfc" id="L537" title="All 2 branches covered.">        if (fields[F_BILLING_POSTAL_CODE - 1] != null) context.put(&quot;billing_postal_code&quot;, fields[F_BILLING_POSTAL_CODE - 1]);</span>
+<span class="fc bfc" id="L538" title="All 2 branches covered.">        if (fields[F_SHIPPING_CITY - 1] != null) context.put(&quot;shipping_city&quot;, fields[F_SHIPPING_CITY - 1]);</span>
+<span class="fc bfc" id="L539" title="All 2 branches covered.">        if (fields[F_SHIPPING_COUNTRY - 1] != null) context.put(&quot;shipping_country&quot;, fields[F_SHIPPING_COUNTRY - 1]);</span>
+<span class="fc bfc" id="L540" title="All 2 branches covered.">        if (fields[F_SHIPPING_POSTAL_CODE - 1] != null) context.put(&quot;shipping_postal_code&quot;, fields[F_SHIPPING_POSTAL_CODE - 1]);</span>
+
+        // Scope fields
+<span class="fc bfc" id="L543" title="All 2 branches covered.">        if (fields[F_CARD_NETWORK - 1] != null) context.put(&quot;card_network&quot;, fields[F_CARD_NETWORK - 1]);</span>
+<span class="fc bfc" id="L544" title="All 2 branches covered.">        if (fields[F_CARD_BIN - 1] != null) context.put(&quot;card_bin&quot;, fields[F_CARD_BIN - 1]);</span>
+<span class="fc bfc" id="L545" title="All 2 branches covered.">        if (fields[F_CARD_LOGO - 1] != null) context.put(&quot;card_logo&quot;, fields[F_CARD_LOGO - 1]);</span>
+
+<span class="fc bfc" id="L547" title="All 2 branches covered.">        if (decision != null) context.put(&quot;decision&quot;, decision);</span>
+
+        // Custom fields
+<span class="fc bfc" id="L550" title="All 2 branches covered.">        if (customFields != null) {</span>
+<span class="fc" id="L551">            context.putAll(customFields);</span>
+        }
+
+<span class="fc" id="L554">        return context;</span>
+    }
+
+    public Map&lt;String, Object&gt; toMinimalContext() {
+<span class="nc" id="L558">        Map&lt;String, Object&gt; context = new HashMap&lt;&gt;(8);</span>
+<span class="nc bnc" id="L559" title="All 2 branches missed.">        if (fields[F_TRANSACTION_ID - 1] != null) context.put(&quot;transaction_id&quot;, fields[F_TRANSACTION_ID - 1]);</span>
+<span class="nc bnc" id="L560" title="All 2 branches missed.">        if (fields[F_CARD_HASH - 1] != null) context.put(&quot;card_hash&quot;, fields[F_CARD_HASH - 1]);</span>
+<span class="nc bnc" id="L561" title="All 2 branches missed.">        if (fields[F_AMOUNT - 1] != null) context.put(&quot;amount&quot;, fields[F_AMOUNT - 1]);</span>
+<span class="nc bnc" id="L562" title="All 2 branches missed.">        if (fields[F_CURRENCY - 1] != null) context.put(&quot;currency&quot;, fields[F_CURRENCY - 1]);</span>
+<span class="nc bnc" id="L563" title="All 2 branches missed.">        if (fields[F_MERCHANT_CATEGORY_CODE - 1] != null) context.put(&quot;merchant_category_code&quot;, fields[F_MERCHANT_CATEGORY_CODE - 1]);</span>
+<span class="nc bnc" id="L564" title="All 2 branches missed.">        if (fields[F_COUNTRY_CODE - 1] != null) context.put(&quot;country_code&quot;, fields[F_COUNTRY_CODE - 1]);</span>
+<span class="nc bnc" id="L565" title="All 2 branches missed.">        if (fields[F_CARD_NETWORK - 1] != null) context.put(&quot;card_network&quot;, fields[F_CARD_NETWORK - 1]);</span>
+<span class="nc bnc" id="L566" title="All 2 branches missed.">        if (fields[F_CARD_BIN - 1] != null) context.put(&quot;card_bin&quot;, fields[F_CARD_BIN - 1]);</span>
+<span class="nc bnc" id="L567" title="All 2 branches missed.">        if (fields[F_CARD_LOGO - 1] != null) context.put(&quot;card_logo&quot;, fields[F_CARD_LOGO - 1]);</span>
+<span class="nc" id="L568">        return context;</span>
+    }
+
+    // ========== Address Class ==========
+
+    /**
+     * Address representation for billing/shipping.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+<span class="fc" id="L577">    public static class Address {</span>
+
+        @JsonProperty(&quot;street1&quot;)
+        private String street1;
+
+        @JsonProperty(&quot;street2&quot;)
+        private String street2;
+
+        @JsonProperty(&quot;city&quot;)
+        private String city;
+
+        @JsonProperty(&quot;state&quot;)
+        private String state;
+
+        @JsonProperty(&quot;postal_code&quot;)
+        private String postalCode;
+
+        @JsonProperty(&quot;country&quot;)
+        private String country;
+
+        public String getStreet1() {
+<span class="fc" id="L598">            return street1;</span>
+        }
+
+        public void setStreet1(String street1) {
+<span class="fc" id="L602">            this.street1 = street1;</span>
+<span class="fc" id="L603">        }</span>
+
+        public String getStreet2() {
+<span class="fc" id="L606">            return street2;</span>
+        }
+
+        public void setStreet2(String street2) {
+<span class="fc" id="L610">            this.street2 = street2;</span>
+<span class="fc" id="L611">        }</span>
+
+        public String getCity() {
+<span class="fc" id="L614">            return city;</span>
+        }
+
+        public void setCity(String city) {
+<span class="fc" id="L618">            this.city = city;</span>
+<span class="fc" id="L619">        }</span>
+
+        public String getState() {
+<span class="fc" id="L622">            return state;</span>
+        }
+
+        public void setState(String state) {
+<span class="fc" id="L626">            this.state = state;</span>
+<span class="fc" id="L627">        }</span>
+
+        public String getPostalCode() {
+<span class="fc" id="L630">            return postalCode;</span>
+        }
+
+        public void setPostalCode(String postalCode) {
+<span class="fc" id="L634">            this.postalCode = postalCode;</span>
+<span class="fc" id="L635">        }</span>
+
+        public String getCountry() {
+<span class="fc" id="L638">            return country;</span>
+        }
+
+        public void setCountry(String country) {
+<span class="fc" id="L642">            this.country = country;</span>
+<span class="fc" id="L643">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/MONITORING-response.json",
+  "title": "MONITORINGResponse",
+  "type": "object",
+  "required": ["transaction_id", "ruleset_key", "ruleset_version", "decision", "matched_rules", "trace_id", "latency_ms"],
+  "properties": {
+    "transaction_id": { "type": "string", "minLength": 1 },
+    "ruleset_key": { "const": "CARD_MONITORING" },
+    "ruleset_version": { "type": "integer", "minimum": 1 },
+    "decision": { "type": "string", "enum": ["APPROVE", "DECLINE"] },
+    "matched_rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule_id", "rule_version", "severity"],
+        "properties": {
+          "rule_id": { "type": "string", "minLength": 1 },
+          "rule_version": { "type": "integer", "minimum": 1 },
+          "severity": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH"] },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": true
+      }
+    },
+    "trace_id": { "type": "string", "minLength": 1 },
+    "latency_ms": { "type": "number", "minimum": 0 },
+    "engine_mode": { "type": "string", "enum": ["NORMAL", "DEGRADED", "FAIL_OPEN"] },
+    "engine_error_code": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": { "engine_mode": { "const": "NORMAL" } },
+        "required": ["engine_mode"]
+      },
+      "then": {
+        "not": { "required": ["engine_error_code"] }
+      }
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SlimAuthResultWriter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.config</a> &gt; <span class="el_source">SlimAuthResultWriter.java</span></div><h1>SlimAuthResultWriter.java</h1><pre class="source lang-java linenums">package com.fraud.engine.config;
+
+import com.fasterxml.jackson.core.io.JsonStringEncoder;
+import com.fraud.engine.resource.dto.SlimAuthResult;
+import jakarta.annotation.Priority;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.ws.rs.Priorities;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.ext.MessageBodyWriter;
+import jakarta.ws.rs.ext.Provider;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
+
+/**
+ * Dedicated writer for AUTH responses to avoid reflection-heavy bean serialization.
+ */
+@Provider
+@Priority(Priorities.USER - 200)
+@Produces(MediaType.APPLICATION_JSON)
+@ApplicationScoped
+<span class="fc" id="L28">public class SlimAuthResultWriter implements MessageBodyWriter&lt;SlimAuthResult&gt; {</span>
+
+<span class="fc" id="L30">    private static final JsonStringEncoder JSON_STRING_ENCODER = JsonStringEncoder.getInstance();</span>
+
+<span class="fc" id="L32">    private static final byte[] OPEN = &quot;{&quot;.getBytes(StandardCharsets.UTF_8);</span>
+<span class="fc" id="L33">    private static final byte[] CLOSE = &quot;}&quot;.getBytes(StandardCharsets.UTF_8);</span>
+<span class="fc" id="L34">    private static final byte[] COMMA = &quot;,&quot;.getBytes(StandardCharsets.UTF_8);</span>
+<span class="fc" id="L35">    private static final byte[] NULL = &quot;null&quot;.getBytes(StandardCharsets.UTF_8);</span>
+
+<span class="fc" id="L37">    private static final byte[] FIELD_TRANSACTION_ID =</span>
+<span class="fc" id="L38">            &quot;\&quot;transaction_id\&quot;:&quot;.getBytes(StandardCharsets.UTF_8);</span>
+<span class="fc" id="L39">    private static final byte[] FIELD_DECISION =</span>
+<span class="fc" id="L40">            &quot;\&quot;decision\&quot;:&quot;.getBytes(StandardCharsets.UTF_8);</span>
+<span class="fc" id="L41">    private static final byte[] FIELD_ENGINE_MODE =</span>
+<span class="fc" id="L42">            &quot;\&quot;engine_mode\&quot;:&quot;.getBytes(StandardCharsets.UTF_8);</span>
+<span class="fc" id="L43">    private static final byte[] FIELD_ENGINE_ERROR_CODE =</span>
+<span class="fc" id="L44">            &quot;\&quot;engine_error_code\&quot;:&quot;.getBytes(StandardCharsets.UTF_8);</span>
+
+    @Override
+    public boolean isWriteable(
+            Class&lt;?&gt; type,
+            Type genericType,
+            Annotation[] annotations,
+            MediaType mediaType
+    ) {
+<span class="pc bpc" id="L53" title="1 of 4 branches missed.">        return SlimAuthResult.class.isAssignableFrom(type)</span>
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">                &amp;&amp; (mediaType == null || MediaType.APPLICATION_JSON_TYPE.isCompatible(mediaType));</span>
+    }
+
+    @Override
+    public void writeTo(
+            SlimAuthResult value,
+            Class&lt;?&gt; type,
+            Type genericType,
+            Annotation[] annotations,
+            MediaType mediaType,
+            MultivaluedMap&lt;String, Object&gt; httpHeaders,
+            OutputStream entityStream
+    ) throws IOException, WebApplicationException {
+<span class="pc bpc" id="L67" title="1 of 2 branches missed.">        SlimAuthResult result = value == null ? new SlimAuthResult() : value;</span>
+
+<span class="fc" id="L69">        entityStream.write(OPEN);</span>
+<span class="fc" id="L70">        writeField(entityStream, FIELD_TRANSACTION_ID, result.transaction_id);</span>
+<span class="fc" id="L71">        entityStream.write(COMMA);</span>
+<span class="fc" id="L72">        writeField(entityStream, FIELD_DECISION, result.decision);</span>
+<span class="fc" id="L73">        entityStream.write(COMMA);</span>
+<span class="fc" id="L74">        writeField(entityStream, FIELD_ENGINE_MODE, result.engine_mode);</span>
+<span class="fc" id="L75">        entityStream.write(COMMA);</span>
+<span class="fc" id="L76">        writeField(entityStream, FIELD_ENGINE_ERROR_CODE, result.engine_error_code);</span>
+<span class="fc" id="L77">        entityStream.write(CLOSE);</span>
+<span class="fc" id="L78">    }</span>
+
+    private static void writeField(OutputStream out, byte[] fieldName, String value) throws IOException {
+<span class="fc" id="L81">        out.write(fieldName);</span>
+<span class="fc bfc" id="L82" title="All 2 branches covered.">        if (value == null) {</span>
+<span class="fc" id="L83">            out.write(NULL);</span>
+<span class="fc" id="L84">            return;</span>
+        }
+
+<span class="fc" id="L87">        out.write('&quot;');</span>
+<span class="fc" id="L88">        out.write(JSON_STRING_ENCODER.quoteAsUTF8(value));</span>
+<span class="fc" id="L89">        out.write('&quot;');</span>
+<span class="fc" id="L90">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

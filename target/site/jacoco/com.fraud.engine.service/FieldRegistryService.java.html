@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FieldRegistryService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.service</a> &gt; <span class="el_source">FieldRegistryService.java</span></div><h1>FieldRegistryService.java</h1><pre class="source lang-java linenums">package com.fraud.engine.service;
+
+import com.fraud.engine.domain.FieldRegistry;
+import com.fraud.engine.dto.FieldRegistryArtifact;
+import com.fraud.engine.dto.FieldRegistryEntry;
+import com.fraud.engine.loader.FieldRegistryLoader;
+import jakarta.annotation.PostConstruct;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.jboss.logging.Logger;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Service for managing field registry with in-memory caching.
+ * &lt;p&gt;
+ * This service loads field definitions from S3/MinIO at startup and provides
+ * fast lookup by field ID or field name. It includes hot-reload support
+ * and builtin fallback for S3 unavailability.
+ * &lt;p&gt;
+ * The service maintains two indexes for fast lookup:
+ * &lt;ul&gt;
+ *   &lt;li&gt;byId: field ID -&gt; FieldRegistryEntry&lt;/li&gt;
+ *   &lt;li&gt;keyToId: normalized field name -&gt; field ID&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+@ApplicationScoped
+public class FieldRegistryService {
+
+<span class="fc" id="L33">    private static final Logger LOG = Logger.getLogger(FieldRegistryService.class);</span>
+
+    private final FieldRegistryLoader loader;
+
+    // Current registry (volatile for safe publication)
+    private volatile FieldRegistryArtifact registry;
+
+    // Indexes for fast lookup
+<span class="fc" id="L41">    private final Map&lt;Integer, FieldRegistryEntry&gt; byId = new ConcurrentHashMap&lt;&gt;();</span>
+<span class="fc" id="L42">    private final Map&lt;String, Integer&gt; keyToId = new ConcurrentHashMap&lt;&gt;();</span>
+
+    @Inject
+<span class="fc" id="L45">    public FieldRegistryService(FieldRegistryLoader loader) {</span>
+<span class="fc" id="L46">        this.loader = loader;</span>
+<span class="fc" id="L47">    }</span>
+
+    @PostConstruct
+    void init() {
+        try {
+<span class="fc" id="L52">            LOG.info(&quot;Initializing FieldRegistryService...&quot;);</span>
+<span class="fc" id="L53">            reload();</span>
+<span class="fc" id="L54">            LOG.infof(&quot;FieldRegistryService initialized with %d fields (version %d)&quot;,</span>
+<span class="fc" id="L55">                    getRegistryVersion(), getFieldCount());</span>
+<span class="fc" id="L56">        } catch (Exception e) {</span>
+<span class="fc" id="L57">            LOG.error(&quot;Failed to initialize FieldRegistryService&quot;, e);</span>
+            // Ensure we have a working registry even on init failure
+<span class="pc bpc" id="L59" title="1 of 2 branches missed.">            if (registry == null) {</span>
+<span class="fc" id="L60">                registry = loader.loadBuiltin();</span>
+<span class="fc" id="L61">                rebuildIndexes();</span>
+            }
+<span class="fc" id="L63">        }</span>
+<span class="fc" id="L64">    }</span>
+
+    /**
+     * Gets the field ID for a given field name.
+     * &lt;p&gt;
+     * First checks the dynamic registry, then falls back to the
+     * static {@link FieldRegistry} constants for backward compatibility.
+     *
+     * @param fieldName the field name (e.g., &quot;card_hash&quot;, &quot;amount&quot;)
+     * @return the field ID, or {@link FieldRegistry#UNKNOWN} if not found
+     */
+    public int getFieldId(String fieldName) {
+<span class="fc bfc" id="L76" title="All 2 branches covered.">        if (fieldName == null) {</span>
+<span class="fc" id="L77">            return FieldRegistry.UNKNOWN;</span>
+        }
+
+        // Try dynamic registry first
+<span class="fc" id="L81">        Integer id = keyToId.get(normalize(fieldName));</span>
+<span class="fc bfc" id="L82" title="All 2 branches covered.">        if (id != null) {</span>
+<span class="fc" id="L83">            return id;</span>
+        }
+
+        // Fallback to static FieldRegistry for backward compatibility
+<span class="fc" id="L87">        return FieldRegistry.fromName(fieldName);</span>
+    }
+
+    /**
+     * Gets the field entry for a given field ID.
+     *
+     * @param fieldId the field ID
+     * @return the field entry, or empty if not found
+     */
+    public Optional&lt;FieldRegistryEntry&gt; getField(int fieldId) {
+<span class="fc" id="L97">        return Optional.ofNullable(byId.get(fieldId));</span>
+    }
+
+    /**
+     * Gets the field entry for a given field name.
+     *
+     * @param fieldName the field name
+     * @return the field entry, or empty if not found
+     */
+    public Optional&lt;FieldRegistryEntry&gt; getFieldByName(String fieldName) {
+<span class="fc" id="L107">        Integer id = keyToId.get(normalize(fieldName));</span>
+<span class="fc bfc" id="L108" title="All 2 branches covered.">        if (id != null) {</span>
+<span class="fc" id="L109">            return Optional.ofNullable(byId.get(id));</span>
+        }
+<span class="fc" id="L111">        return Optional.empty();</span>
+    }
+
+    /**
+     * Returns the current registry version.
+     *
+     * @return the registry version
+     */
+    public int getRegistryVersion() {
+<span class="fc" id="L120">        FieldRegistryArtifact current = registry;</span>
+<span class="pc bpc" id="L121" title="1 of 2 branches missed.">        return current != null ? current.registryVersion : 0;</span>
+    }
+
+    /**
+     * Returns the number of fields in the registry.
+     *
+     * @return the field count
+     */
+    public int getFieldCount() {
+<span class="fc" id="L130">        return byId.size();</span>
+    }
+
+    /**
+     * Returns whether the registry was loaded from S3 (vs builtin fallback).
+     *
+     * @return true if loaded from S3, false if using builtin
+     */
+    public boolean isLoadedFromS3() {
+<span class="fc" id="L139">        FieldRegistryArtifact current = registry;</span>
+<span class="pc bpc" id="L140" title="1 of 4 branches missed.">        return current != null &amp;&amp; !&quot;builtin&quot;.equals(current.createdBy);</span>
+    }
+
+    /**
+     * Reloads the field registry from S3.
+     * &lt;p&gt;
+     * Called by the watcher on version changes or can be called manually.
+     * Performs atomic swap of the in-memory registry.
+     */
+    public void reload() {
+<span class="fc" id="L150">        LOG.info(&quot;Reloading field registry...&quot;);</span>
+
+        try {
+<span class="fc" id="L153">            FieldRegistryArtifact newRegistry = loader.loadLatest();</span>
+
+            // Build new indexes first (fail fast if there's an issue)
+<span class="fc" id="L156">            Map&lt;Integer, FieldRegistryEntry&gt; newById = new ConcurrentHashMap&lt;&gt;();</span>
+<span class="fc" id="L157">            Map&lt;String, Integer&gt; newKeyToId = new ConcurrentHashMap&lt;&gt;();</span>
+
+<span class="fc" id="L159">            buildIndexes(newRegistry.getFields(), newById, newKeyToId);</span>
+
+            // Atomic swap
+<span class="fc" id="L162">            registry = newRegistry;</span>
+<span class="fc" id="L163">            byId.clear();</span>
+<span class="fc" id="L164">            byId.putAll(newById);</span>
+<span class="fc" id="L165">            keyToId.clear();</span>
+<span class="fc" id="L166">            keyToId.putAll(newKeyToId);</span>
+
+<span class="fc" id="L168">            LOG.infof(&quot;Field registry reloaded: version=%d, fields=%d, source=%d&quot;,</span>
+<span class="fc" id="L169">                    newRegistry.getRegistryVersion(),</span>
+<span class="fc" id="L170">                    newById.size(),</span>
+<span class="fc" id="L171">                    newRegistry.getCreatedBy());</span>
+
+<span class="fc" id="L173">        } catch (Exception e) {</span>
+<span class="fc" id="L174">            LOG.errorf(e, &quot;Failed to reload field registry, keeping current version&quot;);</span>
+<span class="fc" id="L175">            throw e;</span>
+<span class="fc" id="L176">        }</span>
+<span class="fc" id="L177">    }</span>
+
+    /**
+     * Gets the source of the current registry (S3 or builtin).
+     *
+     * @return the source description
+     */
+    public String getSource() {
+<span class="fc" id="L185">        FieldRegistryArtifact current = registry;</span>
+<span class="fc bfc" id="L186" title="All 2 branches covered.">        if (current == null) {</span>
+<span class="fc" id="L187">            return &quot;unknown&quot;;</span>
+        }
+<span class="pc bpc" id="L189" title="1 of 2 branches missed.">        return &quot;builtin&quot;.equals(current.getCreatedBy()) ? &quot;builtin&quot; : &quot;s3&quot;;</span>
+    }
+
+    /**
+     * Checks if the S3 storage is accessible.
+     *
+     * @return true if S3 is accessible, false otherwise
+     */
+    public boolean isStorageAccessible() {
+<span class="fc" id="L198">        return loader.isStorageAccessible();</span>
+    }
+
+    // ========== Helper Methods ==========
+
+    /**
+     * Normalizes a field name for case-insensitive lookup.
+     *
+     * @param fieldName the field name to normalize
+     * @return the normalized (lowercase) field name
+     */
+    private String normalize(String fieldName) {
+<span class="fc" id="L210">        return fieldName.toLowerCase().trim();</span>
+    }
+
+    private void buildIndexes(List&lt;FieldRegistryEntry&gt; fields,
+                              Map&lt;Integer, FieldRegistryEntry&gt; byIdMap,
+                              Map&lt;String, Integer&gt; keyToIdMap) {
+<span class="pc bpc" id="L216" title="1 of 2 branches missed.">        if (fields == null) {</span>
+<span class="nc" id="L217">            return;</span>
+        }
+<span class="fc bfc" id="L219" title="All 2 branches covered.">        for (FieldRegistryEntry entry : fields) {</span>
+<span class="fc" id="L220">            byIdMap.put(entry.getFieldId(), entry);</span>
+<span class="fc" id="L221">            keyToIdMap.put(normalize(entry.getFieldKey()), entry.getFieldId());</span>
+
+<span class="fc" id="L223">            String staticName = FieldRegistry.getName(entry.getFieldId());</span>
+<span class="fc bfc" id="L224" title="All 2 branches covered.">            if (!&quot;UNKNOWN&quot;.equals(staticName)) {</span>
+<span class="fc" id="L225">                keyToIdMap.put(normalize(staticName), entry.getFieldId());</span>
+            }
+<span class="fc" id="L227">        }</span>
+<span class="fc" id="L228">    }</span>
+
+    /**
+     * Rebuilds the indexes from the current registry.
+     * Called during initialization and reload.
+     */
+    private void rebuildIndexes() {
+<span class="fc" id="L235">        byId.clear();</span>
+<span class="fc" id="L236">        keyToId.clear();</span>
+
+<span class="fc" id="L238">        FieldRegistryArtifact current = registry;</span>
+<span class="pc bpc" id="L239" title="1 of 2 branches missed.">        buildIndexes(current != null ? current.getFields() : null, byId, keyToId);</span>
+<span class="fc" id="L240">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BuiltinFieldRegistry.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.loader</a> &gt; <span class="el_source">BuiltinFieldRegistry.java</span></div><h1>BuiltinFieldRegistry.java</h1><pre class="source lang-java linenums">package com.fraud.engine.loader;
+
+import com.fraud.engine.dto.FieldRegistryEntry;
+import com.fraud.engine.domain.FieldRegistry;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Builtin field registry providing the 26 standard fields as fallback.
+ * &lt;p&gt;
+ * This class provides hardcoded field definitions that match the constants
+ * in {@link FieldRegistry}. Field IDs start from 1, not 0.
+ * Used when S3 is unavailable or as initial bootstrap.
+ */
+public final class BuiltinFieldRegistry {
+
+    private static final List&lt;FieldRegistryEntry&gt; BUILTIN_FIELDS;
+
+    static {
+<span class="fc" id="L21">        List&lt;FieldRegistryEntry&gt; fields = new ArrayList&lt;&gt;(26);</span>
+
+        // Transaction fields (1-4)
+<span class="fc" id="L24">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.TRANSACTION_ID, &quot;transaction_id&quot;, &quot;Transaction ID&quot;,
+                &quot;Unique transaction identifier&quot;, &quot;STRING&quot;,
+<span class="fc" id="L27">                List.of(&quot;EQ&quot;, &quot;NE&quot;), false, false</span>
+        ));
+<span class="fc" id="L29">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.CARD_HASH, &quot;card_hash&quot;, &quot;Card Hash&quot;,
+                &quot;Hashed card identifier&quot;, &quot;STRING&quot;,
+<span class="fc" id="L32">                List.of(&quot;EQ&quot;, &quot;NE&quot;), false, true</span>
+        ));
+<span class="fc" id="L34">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.AMOUNT, &quot;amount&quot;, &quot;Amount&quot;,
+                &quot;Transaction amount&quot;, &quot;NUMBER&quot;,
+<span class="fc" id="L37">                List.of(&quot;EQ&quot;, &quot;GT&quot;, &quot;GTE&quot;, &quot;LT&quot;, &quot;LTE&quot;, &quot;BETWEEN&quot;), false, false</span>
+        ));
+<span class="fc" id="L39">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.CURRENCY, &quot;currency&quot;, &quot;Currency&quot;,
+                &quot;Transaction currency code&quot;, &quot;STRING&quot;,
+<span class="fc" id="L42">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;), false, false</span>
+        ));
+
+        // Merchant fields (5-8)
+<span class="fc" id="L46">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.MERCHANT_ID, &quot;merchant_id&quot;, &quot;Merchant ID&quot;,
+                &quot;Unique merchant identifier&quot;, &quot;STRING&quot;,
+<span class="fc" id="L49">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;), false, false</span>
+        ));
+<span class="fc" id="L51">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.MERCHANT_NAME, &quot;merchant_name&quot;, &quot;Merchant Name&quot;,
+                &quot;Merchant business name&quot;, &quot;STRING&quot;,
+<span class="fc" id="L54">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;CONTAINS&quot;), false, false</span>
+        ));
+<span class="fc" id="L56">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.MERCHANT_CATEGORY, &quot;merchant_category&quot;, &quot;Merchant Category&quot;,
+                &quot;Merchant business category&quot;, &quot;STRING&quot;,
+<span class="fc" id="L59">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;), false, false</span>
+        ));
+<span class="fc" id="L61">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.MERCHANT_CATEGORY_CODE, &quot;merchant_category_code&quot;, &quot;MCC&quot;,
+                &quot;Merchant Category Code&quot;, &quot;STRING&quot;,
+<span class="fc" id="L64">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;), false, false</span>
+        ));
+
+        // Transaction attributes (9-12)
+<span class="fc" id="L68">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.CARD_PRESENT, &quot;card_present&quot;, &quot;Card Present&quot;,
+                &quot;Whether physical card was present&quot;, &quot;BOOLEAN&quot;,
+<span class="fc" id="L71">                List.of(&quot;EQ&quot;, &quot;NE&quot;), false, false</span>
+        ));
+<span class="fc" id="L73">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.TRANSACTION_TYPE, &quot;transaction_type&quot;, &quot;Transaction Type&quot;,
+                &quot;Type of transaction (e.g., PURCHASE, REFUND)&quot;, &quot;STRING&quot;,
+<span class="fc" id="L76">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;), false, false</span>
+        ));
+<span class="fc" id="L78">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.ENTRY_MODE, &quot;entry_mode&quot;, &quot;Entry Mode&quot;,
+                &quot;How card data was entered (e.g., CHIP, SWIPE, ECOM)&quot;, &quot;STRING&quot;,
+<span class="fc" id="L81">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;), false, false</span>
+        ));
+<span class="fc" id="L83">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.COUNTRY_CODE, &quot;country_code&quot;, &quot;Country Code&quot;,
+                &quot;ISO country code of transaction&quot;, &quot;STRING&quot;,
+<span class="fc" id="L86">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;), false, false</span>
+        ));
+
+        // Digital footprint (13-16)
+<span class="fc" id="L90">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.IP_ADDRESS, &quot;ip_address&quot;, &quot;IP Address&quot;,
+                &quot;IP address of transaction initiator&quot;, &quot;STRING&quot;,
+<span class="fc" id="L93">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;), true, true</span>
+        ));
+<span class="fc" id="L95">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.DEVICE_ID, &quot;device_id&quot;, &quot;Device ID&quot;,
+                &quot;Unique device identifier&quot;, &quot;STRING&quot;,
+<span class="fc" id="L98">                List.of(&quot;EQ&quot;, &quot;NE&quot;), false, true</span>
+        ));
+<span class="fc" id="L100">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.EMAIL, &quot;email&quot;, &quot;Email&quot;,
+                &quot;Email address associated with transaction&quot;, &quot;STRING&quot;,
+<span class="fc" id="L103">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;CONTAINS&quot;, &quot;ENDS_WITH&quot;), false, true</span>
+        ));
+<span class="fc" id="L105">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.PHONE, &quot;phone&quot;, &quot;Phone&quot;,
+                &quot;Phone number associated with transaction&quot;, &quot;STRING&quot;,
+<span class="fc" id="L108">                List.of(&quot;EQ&quot;, &quot;NE&quot;), false, true</span>
+        ));
+
+        // Timestamp and billing (17-20)
+<span class="fc" id="L112">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.TIMESTAMP, &quot;timestamp&quot;, &quot;Timestamp&quot;,
+                &quot;Transaction timestamp&quot;, &quot;NUMBER&quot;,
+<span class="fc" id="L115">                List.of(&quot;EQ&quot;, &quot;GT&quot;, &quot;GTE&quot;, &quot;LT&quot;, &quot;LTE&quot;, &quot;BETWEEN&quot;), false, false</span>
+        ));
+<span class="fc" id="L117">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.BILLING_CITY, &quot;billing_city&quot;, &quot;Billing City&quot;,
+                &quot;Billing address city&quot;, &quot;STRING&quot;,
+<span class="fc" id="L120">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;), false, false</span>
+        ));
+<span class="fc" id="L122">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.BILLING_COUNTRY, &quot;billing_country&quot;, &quot;Billing Country&quot;,
+                &quot;Billing address country&quot;, &quot;STRING&quot;,
+<span class="fc" id="L125">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;), false, false</span>
+        ));
+<span class="fc" id="L127">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.BILLING_POSTAL_CODE, &quot;billing_postal_code&quot;, &quot;Billing Postal Code&quot;,
+                &quot;Billing address postal code&quot;, &quot;STRING&quot;,
+<span class="fc" id="L130">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;), false, true</span>
+        ));
+
+        // Shipping (21-23)
+<span class="fc" id="L134">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.SHIPPING_CITY, &quot;shipping_city&quot;, &quot;Shipping City&quot;,
+                &quot;Shipping address city&quot;, &quot;STRING&quot;,
+<span class="fc" id="L137">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;), false, false</span>
+        ));
+<span class="fc" id="L139">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.SHIPPING_COUNTRY, &quot;shipping_country&quot;, &quot;Shipping Country&quot;,
+                &quot;Shipping address country&quot;, &quot;STRING&quot;,
+<span class="fc" id="L142">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;), false, false</span>
+        ));
+<span class="fc" id="L144">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.SHIPPING_POSTAL_CODE, &quot;shipping_postal_code&quot;, &quot;Shipping Postal Code&quot;,
+                &quot;Shipping address postal code&quot;, &quot;STRING&quot;,
+<span class="fc" id="L147">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;), false, true</span>
+        ));
+
+        // Card scope fields (24-26)
+<span class="fc" id="L151">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.CARD_NETWORK, &quot;card_network&quot;, &quot;Card Network&quot;,
+                &quot;Card network (e.g., VISA, MC, AMEX)&quot;, &quot;STRING&quot;,
+<span class="fc" id="L154">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;), false, false</span>
+        ));
+<span class="fc" id="L156">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.CARD_BIN, &quot;card_bin&quot;, &quot;Card BIN&quot;,
+                &quot;Bank Identification Number (first 6-8 digits)&quot;, &quot;STRING&quot;,
+<span class="fc" id="L159">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;, &quot;STARTS_WITH&quot;), false, false</span>
+        ));
+<span class="fc" id="L161">        fields.add(new FieldRegistryEntry(</span>
+                FieldRegistry.CARD_LOGO, &quot;card_logo&quot;, &quot;Card Logo&quot;,
+                &quot;Card brand logo identifier&quot;, &quot;STRING&quot;,
+<span class="fc" id="L164">                List.of(&quot;EQ&quot;, &quot;NE&quot;, &quot;IN&quot;, &quot;NOT_IN&quot;), false, false</span>
+        ));
+
+<span class="fc" id="L167">        BUILTIN_FIELDS = List.copyOf(fields);</span>
+<span class="fc" id="L168">    }</span>
+
+    /**
+     * Returns the list of builtin field definitions.
+     *
+     * @return unmodifiable list of 26 standard field entries
+     */
+    public static List&lt;FieldRegistryEntry&gt; getFields() {
+<span class="fc" id="L176">        return BUILTIN_FIELDS;</span>
+    }
+
+    /**
+     * Returns the count of builtin fields.
+     *
+     * @return always 26
+     */
+    public static int getFieldCount() {
+<span class="fc" id="L185">        return BUILTIN_FIELDS.size();</span>
+    }
+
+    // Prevent instantiation
+<span class="nc" id="L189">    private BuiltinFieldRegistry() {</span>
+<span class="nc" id="L190">        throw new UnsupportedOperationException(&quot;Utility class&quot;);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

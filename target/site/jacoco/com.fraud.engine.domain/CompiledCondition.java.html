@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CompiledCondition.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.domain</a> &gt; <span class="el_source">CompiledCondition.java</span></div><h1>CompiledCondition.java</h1><pre class="source lang-java linenums">package com.fraud.engine.domain;
+
+import java.util.function.Predicate;
+
+/**
+ * A compiled condition that can be evaluated against a transaction.
+ * &lt;p&gt;
+ * This is the high-performance alternative to {@link Condition}.
+ * Conditions are compiled into executable lambdas at ruleset load time for optimal performance.
+ * &lt;p&gt;
+ * Benefits over interpretive evaluation:
+ * &lt;ul&gt;
+ *   &lt;li&gt;No HashMap lookups - direct field access&lt;/li&gt;
+ *   &lt;li&gt;No string comparisons - integer comparisons&lt;/li&gt;
+ *   &lt;li&gt;JIT can inline the lambda completely&lt;/li&gt;
+ *   &lt;li&gt;Monomorphic call sites enable better optimization&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * @see com.fraud.engine.engine.ConditionCompiler
+ */
+@FunctionalInterface
+public interface CompiledCondition extends Predicate&lt;TransactionContext&gt; {
+
+    /**
+     * Evaluates this condition against the given transaction.
+     *
+     * @param transaction the transaction context
+     * @return true if condition matches, false otherwise
+     */
+    boolean matches(TransactionContext transaction);
+
+    /**
+     * Default method - evaluates as a predicate.
+     */
+    @Override
+    default boolean test(TransactionContext transaction) {
+<span class="fc" id="L37">        return matches(transaction);</span>
+    }
+
+    /**
+     * Combines two conditions with AND logic.
+     *
+     * @param other the other condition
+     * @return a new condition that matches only if both match
+     */
+    default CompiledCondition and(CompiledCondition other) {
+<span class="pc bpc" id="L47" title="2 of 4 branches missed.">        return tx -&gt; this.matches(tx) &amp;&amp; other.matches(tx);</span>
+    }
+
+    /**
+     * Combines two conditions with OR logic.
+     *
+     * @param other the other condition
+     * @return a new condition that matches if either matches
+     */
+    default CompiledCondition or(CompiledCondition other) {
+<span class="pc bpc" id="L57" title="3 of 4 branches missed.">        return tx -&gt; this.matches(tx) || other.matches(tx);</span>
+    }
+
+    /**
+     * Negates this condition.
+     *
+     * @return a new condition that matches if this does not
+     */
+    default CompiledCondition not() {
+<span class="pc bpc" id="L66" title="1 of 2 branches missed.">        return tx -&gt; !this.matches(tx);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

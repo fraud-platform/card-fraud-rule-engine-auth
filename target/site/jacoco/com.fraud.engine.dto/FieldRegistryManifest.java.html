@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FieldRegistryManifest.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.dto</a> &gt; <span class="el_source">FieldRegistryManifest.java</span></div><h1>FieldRegistryManifest.java</h1><pre class="source lang-java linenums">package com.fraud.engine.dto;
+
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+
+/**
+ * DTO representing the field registry manifest stored in S3.
+ * &lt;p&gt;
+ * The manifest contains metadata about the current field registry version
+ * and points to the actual field definitions artifact.
+ * &lt;p&gt;
+ * Stored at: fields/registry/manifest.json
+ */
+@Schema(description = &quot;Field registry manifest containing version and artifact location&quot;)
+public class FieldRegistryManifest {
+
+    @Schema(description = &quot;Schema version for compatibility checking&quot;)
+    public int schemaVersion;
+
+    @Schema(description = &quot;Current field registry version&quot;)
+    public int registryVersion;
+
+    @Schema(description = &quot;S3 URI to the field definitions artifact&quot;)
+    public String artifactUri;
+
+    @Schema(description = &quot;Checksum of the artifact (sha256:...)&quot;)
+    public String checksum;
+
+    @Schema(description = &quot;Number of fields in this version&quot;)
+    public int fieldCount;
+
+    @Schema(description = &quot;Timestamp when this version was created&quot;)
+    public String createdAt;
+
+    @Schema(description = &quot;User or system that created this version&quot;)
+    public String createdBy;
+
+<span class="fc" id="L37">    public FieldRegistryManifest() {</span>
+<span class="fc" id="L38">    }</span>
+
+    public FieldRegistryManifest(int schemaVersion, int registryVersion, String artifactUri,
+<span class="fc" id="L41">                                 String checksum, int fieldCount, String createdAt, String createdBy) {</span>
+<span class="fc" id="L42">        this.schemaVersion = schemaVersion;</span>
+<span class="fc" id="L43">        this.registryVersion = registryVersion;</span>
+<span class="fc" id="L44">        this.artifactUri = artifactUri;</span>
+<span class="fc" id="L45">        this.checksum = checksum;</span>
+<span class="fc" id="L46">        this.fieldCount = fieldCount;</span>
+<span class="fc" id="L47">        this.createdAt = createdAt;</span>
+<span class="fc" id="L48">        this.createdBy = createdBy;</span>
+<span class="fc" id="L49">    }</span>
+
+    // Getters and Setters
+
+    public int getSchemaVersion() {
+<span class="fc" id="L54">        return schemaVersion;</span>
+    }
+
+    public void setSchemaVersion(int schemaVersion) {
+<span class="fc" id="L58">        this.schemaVersion = schemaVersion;</span>
+<span class="fc" id="L59">    }</span>
+
+    public int getRegistryVersion() {
+<span class="fc" id="L62">        return registryVersion;</span>
+    }
+
+    public void setRegistryVersion(int registryVersion) {
+<span class="fc" id="L66">        this.registryVersion = registryVersion;</span>
+<span class="fc" id="L67">    }</span>
+
+    public String getArtifactUri() {
+<span class="fc" id="L70">        return artifactUri;</span>
+    }
+
+    public void setArtifactUri(String artifactUri) {
+<span class="fc" id="L74">        this.artifactUri = artifactUri;</span>
+<span class="fc" id="L75">    }</span>
+
+    public String getChecksum() {
+<span class="fc" id="L78">        return checksum;</span>
+    }
+
+    public void setChecksum(String checksum) {
+<span class="fc" id="L82">        this.checksum = checksum;</span>
+<span class="fc" id="L83">    }</span>
+
+    public int getFieldCount() {
+<span class="fc" id="L86">        return fieldCount;</span>
+    }
+
+    public void setFieldCount(int fieldCount) {
+<span class="fc" id="L90">        this.fieldCount = fieldCount;</span>
+<span class="fc" id="L91">    }</span>
+
+    public String getCreatedAt() {
+<span class="fc" id="L94">        return createdAt;</span>
+    }
+
+    public void setCreatedAt(String createdAt) {
+<span class="fc" id="L98">        this.createdAt = createdAt;</span>
+<span class="fc" id="L99">    }</span>
+
+    public String getCreatedBy() {
+<span class="fc" id="L102">        return createdBy;</span>
+    }
+
+    public void setCreatedBy(String createdBy) {
+<span class="fc" id="L106">        this.createdBy = createdBy;</span>
+<span class="fc" id="L107">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

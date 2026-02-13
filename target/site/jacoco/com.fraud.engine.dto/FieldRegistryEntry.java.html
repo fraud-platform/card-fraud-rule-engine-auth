@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FieldRegistryEntry.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.dto</a> &gt; <span class="el_source">FieldRegistryEntry.java</span></div><h1>FieldRegistryEntry.java</h1><pre class="source lang-java linenums">package com.fraud.engine.dto;
+
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+
+import java.util.List;
+
+/**
+ * DTO representing a single field definition in the field registry.
+ * &lt;p&gt;
+ * This maps to the field definitions that will be managed in rule-management
+ * and published to S3 as part of fields.json.
+ */
+@Schema(description = &quot;A single field definition in the field registry&quot;)
+public class FieldRegistryEntry {
+
+    @Schema(description = &quot;Unique field identifier (integer ID)&quot;)
+    public int fieldId;
+
+    @Schema(description = &quot;Field key name (e.g., 'amount', 'card_hash')&quot;)
+    public String fieldKey;
+
+    @Schema(description = &quot;Human-readable display name&quot;)
+    public String displayName;
+
+    @Schema(description = &quot;Field description&quot;)
+    public String description;
+
+    @Schema(description = &quot;Data type (STRING, NUMBER, BOOLEAN, etc.)&quot;)
+    public String dataType;
+
+    @Schema(description = &quot;List of operators allowed for this field&quot;)
+    public List&lt;String&gt; allowedOperators;
+
+    @Schema(description = &quot;Whether multiple values are allowed&quot;)
+    public boolean multiValueAllowed;
+
+    @Schema(description = &quot;Whether this field contains sensitive data (PII)&quot;)
+    public boolean isSensitive;
+
+<span class="fc" id="L40">    public FieldRegistryEntry() {</span>
+<span class="fc" id="L41">    }</span>
+
+    public FieldRegistryEntry(int fieldId, String fieldKey, String displayName,
+                              String description, String dataType,
+                              List&lt;String&gt; allowedOperators,
+<span class="fc" id="L46">                              boolean multiValueAllowed, boolean isSensitive) {</span>
+<span class="fc" id="L47">        this.fieldId = fieldId;</span>
+<span class="fc" id="L48">        this.fieldKey = fieldKey;</span>
+<span class="fc" id="L49">        this.displayName = displayName;</span>
+<span class="fc" id="L50">        this.description = description;</span>
+<span class="fc" id="L51">        this.dataType = dataType;</span>
+<span class="fc" id="L52">        this.allowedOperators = allowedOperators;</span>
+<span class="fc" id="L53">        this.multiValueAllowed = multiValueAllowed;</span>
+<span class="fc" id="L54">        this.isSensitive = isSensitive;</span>
+<span class="fc" id="L55">    }</span>
+
+    // Getters and Setters
+
+    public int getFieldId() {
+<span class="fc" id="L60">        return fieldId;</span>
+    }
+
+    public void setFieldId(int fieldId) {
+<span class="fc" id="L64">        this.fieldId = fieldId;</span>
+<span class="fc" id="L65">    }</span>
+
+    public String getFieldKey() {
+<span class="fc" id="L68">        return fieldKey;</span>
+    }
+
+    public void setFieldKey(String fieldKey) {
+<span class="fc" id="L72">        this.fieldKey = fieldKey;</span>
+<span class="fc" id="L73">    }</span>
+
+    public String getDisplayName() {
+<span class="fc" id="L76">        return displayName;</span>
+    }
+
+    public void setDisplayName(String displayName) {
+<span class="fc" id="L80">        this.displayName = displayName;</span>
+<span class="fc" id="L81">    }</span>
+
+    public String getDescription() {
+<span class="fc" id="L84">        return description;</span>
+    }
+
+    public void setDescription(String description) {
+<span class="fc" id="L88">        this.description = description;</span>
+<span class="fc" id="L89">    }</span>
+
+    public String getDataType() {
+<span class="fc" id="L92">        return dataType;</span>
+    }
+
+    public void setDataType(String dataType) {
+<span class="fc" id="L96">        this.dataType = dataType;</span>
+<span class="fc" id="L97">    }</span>
+
+    public List&lt;String&gt; getAllowedOperators() {
+<span class="fc" id="L100">        return allowedOperators;</span>
+    }
+
+    public void setAllowedOperators(List&lt;String&gt; allowedOperators) {
+<span class="fc" id="L104">        this.allowedOperators = allowedOperators;</span>
+<span class="fc" id="L105">    }</span>
+
+    public boolean isMultiValueAllowed() {
+<span class="fc" id="L108">        return multiValueAllowed;</span>
+    }
+
+    public void setMultiValueAllowed(boolean multiValueAllowed) {
+<span class="fc" id="L112">        this.multiValueAllowed = multiValueAllowed;</span>
+<span class="fc" id="L113">    }</span>
+
+    public boolean isSensitive() {
+<span class="fc" id="L116">        return isSensitive;</span>
+    }
+
+    public void setSensitive(boolean sensitive) {
+<span class="fc" id="L120">        isSensitive = sensitive;</span>
+<span class="fc" id="L121">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

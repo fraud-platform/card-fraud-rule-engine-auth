@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FieldRegistryLoader.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.loader</a> &gt; <span class="el_source">FieldRegistryLoader.java</span></div><h1>FieldRegistryLoader.java</h1><pre class="source lang-java linenums">package com.fraud.engine.loader;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fraud.engine.dto.FieldRegistryArtifact;
+import com.fraud.engine.dto.FieldRegistryEntry;
+import com.fraud.engine.dto.FieldRegistryManifest;
+import jakarta.annotation.PostConstruct;
+import jakarta.enterprise.context.ApplicationScoped;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.S3Exception;
+
+import java.io.InputStream;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
+import java.util.HexFormat;
+import java.util.List;
+
+/**
+ * Loader for field registry artifacts from S3/MinIO storage.
+ * &lt;p&gt;
+ * This service loads field registry definitions from S3, with builtin
+ * fallback when S3 is unavailable. The registry contains field definitions
+ * used in rule compilation.
+ * &lt;p&gt;
+ * Follows the same pattern as RulesetLoader for consistency.
+ */
+@ApplicationScoped
+<span class="fc" id="L38">public class FieldRegistryLoader {</span>
+
+<span class="fc" id="L40">    private static final Logger LOG = Logger.getLogger(FieldRegistryLoader.class);</span>
+
+    @ConfigProperty(name = &quot;s3.endpoint-url&quot;)
+    String endpointUrl;
+
+    @ConfigProperty(name = &quot;s3.aws.region&quot;)
+    String region;
+
+    @ConfigProperty(name = &quot;s3.aws.credentials.static-provider.access-key-id&quot;)
+    String accessKeyId;
+
+    @ConfigProperty(name = &quot;s3.aws.credentials.static-provider.secret-access-key&quot;)
+    String secretAccessKey;
+
+    @ConfigProperty(name = &quot;app.ruleset.bucket&quot;, defaultValue = &quot;fraud-gov-artifacts&quot;)
+    String bucketName;
+
+    @ConfigProperty(name = &quot;app.field-registry.path-prefix&quot;, defaultValue = &quot;fields/&quot;)
+    String pathPrefix;
+
+    private S3Client s3Client;
+<span class="fc" id="L61">    private final ObjectMapper jsonMapper = new ObjectMapper();</span>
+
+    @PostConstruct
+    void init() {
+        try {
+<span class="nc" id="L66">            LOG.infof(&quot;Initializing S3 client for FieldRegistry: %s&quot;, endpointUrl);</span>
+
+<span class="nc" id="L68">            s3Client = S3Client.builder()</span>
+<span class="nc" id="L69">                    .endpointOverride(URI.create(endpointUrl))</span>
+<span class="nc" id="L70">                    .region(Region.of(region))</span>
+<span class="nc" id="L71">                    .credentialsProvider(StaticCredentialsProvider.create(</span>
+<span class="nc" id="L72">                            AwsBasicCredentials.create(accessKeyId, secretAccessKey)))</span>
+<span class="nc" id="L73">                    .forcePathStyle(true) // Required for MinIO</span>
+<span class="nc" id="L74">                    .build();</span>
+
+<span class="nc" id="L76">            LOG.info(&quot;S3 client for FieldRegistry initialized successfully&quot;);</span>
+
+<span class="nc" id="L78">        } catch (Exception e) {</span>
+<span class="nc" id="L79">            LOG.error(&quot;Failed to initialize S3 client for FieldRegistry&quot;, e);</span>
+<span class="nc" id="L80">        }</span>
+<span class="nc" id="L81">    }</span>
+
+    /**
+     * Loads the field registry manifest from S3.
+     * &lt;p&gt;
+     * The manifest contains the current registry version and artifact URI.
+     *
+     * @return the manifest, or null if not found or S3 is unavailable
+     */
+    public FieldRegistryManifest loadManifest() {
+        try {
+<span class="fc" id="L92">            String objectKey = pathPrefix + &quot;registry/manifest.json&quot;;</span>
+
+<span class="fc" id="L94">            LOG.debugf(&quot;Loading field registry manifest from S3: bucket=%s, key=%s&quot;, bucketName, objectKey);</span>
+
+<span class="fc" id="L96">            GetObjectRequest getObjectRequest = GetObjectRequest.builder()</span>
+<span class="fc" id="L97">                    .bucket(bucketName)</span>
+<span class="fc" id="L98">                    .key(objectKey)</span>
+<span class="fc" id="L99">                    .build();</span>
+
+<span class="fc" id="L101">            try (InputStream inputStream = s3Client.getObject(getObjectRequest)) {</span>
+<span class="fc" id="L102">                FieldRegistryManifest manifest = jsonMapper.readValue(inputStream, FieldRegistryManifest.class);</span>
+<span class="fc" id="L103">                LOG.debugf(&quot;Loaded field registry manifest: version=%d, fields=%d&quot;,</span>
+                        manifest.registryVersion, manifest.fieldCount);
+<span class="fc" id="L105">                return manifest;</span>
+            }
+
+<span class="fc" id="L108">        } catch (NoSuchKeyException e) {</span>
+<span class="fc" id="L109">            LOG.debugf(&quot;Field registry manifest not found: %s&quot;, e.getMessage());</span>
+<span class="fc" id="L110">            return null;</span>
+
+<span class="nc" id="L112">        } catch (Exception e) {</span>
+<span class="nc" id="L113">            LOG.warnf(&quot;Error loading field registry manifest: %s&quot;, e.getMessage());</span>
+<span class="nc" id="L114">            return null;</span>
+        }
+    }
+
+    /**
+     * Loads a specific version of the field registry from S3.
+     *
+     * @param version the registry version to load
+     * @return the field registry artifact, or null if not found
+     */
+    public FieldRegistryArtifact loadRegistry(int version) {
+        try {
+<span class="fc" id="L126">            String objectKey = pathPrefix + &quot;registry/v&quot; + version + &quot;/fields.json&quot;;</span>
+
+<span class="fc" id="L128">            LOG.infof(&quot;Loading field registry from S3: bucket=%s, key=%s&quot;, bucketName, objectKey);</span>
+
+<span class="fc" id="L130">            GetObjectRequest getObjectRequest = GetObjectRequest.builder()</span>
+<span class="fc" id="L131">                    .bucket(bucketName)</span>
+<span class="fc" id="L132">                    .key(objectKey)</span>
+<span class="fc" id="L133">                    .build();</span>
+
+<span class="fc" id="L135">            try (InputStream inputStream = s3Client.getObject(getObjectRequest)) {</span>
+<span class="fc" id="L136">                byte[] rawContent = inputStream.readAllBytes();</span>
+<span class="fc" id="L137">                String computedChecksum = computeChecksum(rawContent);</span>
+
+<span class="fc" id="L139">                FieldRegistryArtifact artifact = jsonMapper.readValue(rawContent, FieldRegistryArtifact.class);</span>
+
+<span class="pc bpc" id="L141" title="3 of 4 branches missed.">                if (artifact.checksum != null &amp;&amp; !artifact.checksum.isEmpty()) {</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">                    if (!computedChecksum.equalsIgnoreCase(artifact.checksum)) {</span>
+<span class="nc" id="L143">                        LOG.errorf(&quot;CHECKSUM MISMATCH for field registry v%d. Expected: %s, Computed: %s. &quot; +</span>
+                                   &quot;Artifact may be tampered. Rejecting load.&quot;,
+<span class="nc" id="L145">                                version, artifact.checksum, computedChecksum);</span>
+<span class="nc" id="L146">                        return null;</span>
+                    }
+<span class="nc" id="L148">                    LOG.debugf(&quot;Checksum validated successfully for field registry v%d&quot;, version);</span>
+                }
+
+<span class="fc" id="L151">                LOG.infof(&quot;Field registry v%d loaded successfully with %d fields&quot;,</span>
+<span class="pc bpc" id="L152" title="1 of 2 branches missed.">                        version, artifact.fields != null ? artifact.fields.size() : 0);</span>
+
+<span class="fc" id="L154">                return artifact;</span>
+<span class="nc bnc" id="L155" title="All 2 branches missed.">            }</span>
+
+<span class="fc" id="L157">        } catch (NoSuchKeyException e) {</span>
+<span class="fc" id="L158">            LOG.warnf(&quot;Field registry version %d not found&quot;, version);</span>
+<span class="fc" id="L159">            return null;</span>
+
+<span class="nc" id="L161">        } catch (Exception e) {</span>
+<span class="nc" id="L162">            LOG.errorf(e, &quot;Error loading field registry version %d&quot;, version);</span>
+<span class="nc" id="L163">            return null;</span>
+        }
+    }
+
+    /**
+     * Loads the latest field registry from S3.
+     * &lt;p&gt;
+     * First loads the manifest to find the latest version, then loads that version.
+     * Falls back to builtin registry if manifest not found or S3 is unavailable.
+     *
+     * @return the latest field registry artifact, or builtin fallback
+     */
+    public FieldRegistryArtifact loadLatest() {
+        try {
+<span class="fc" id="L177">            FieldRegistryManifest manifest = loadManifest();</span>
+<span class="fc bfc" id="L178" title="All 4 branches covered.">            if (manifest == null || manifest.registryVersion &lt;= 0) {</span>
+<span class="fc" id="L179">                LOG.debug(&quot;No manifest found, using builtin registry&quot;);</span>
+<span class="fc" id="L180">                return loadBuiltin();</span>
+            }
+
+<span class="fc" id="L183">            FieldRegistryArtifact artifact = loadRegistry(manifest.registryVersion);</span>
+<span class="pc bpc" id="L184" title="1 of 2 branches missed.">            if (artifact == null) {</span>
+<span class="fc" id="L185">                LOG.warnf(&quot;Failed to load registry version %d from manifest, using builtin&quot;,</span>
+<span class="fc" id="L186">                        manifest.registryVersion);</span>
+<span class="fc" id="L187">                return loadBuiltin();</span>
+            }
+
+<span class="nc" id="L190">            return artifact;</span>
+
+<span class="nc" id="L192">        } catch (Exception e) {</span>
+<span class="nc" id="L193">            LOG.warnf(&quot;Error loading latest field registry, using builtin: %s&quot;, e.getMessage());</span>
+<span class="nc" id="L194">            return loadBuiltin();</span>
+        }
+    }
+
+    /**
+     * Loads the builtin field registry (hardcoded fallback).
+     * &lt;p&gt;
+     * This provides the 26 standard fields as a fallback when S3 is unavailable.
+     * This method never fails - it always returns a valid registry.
+     *
+     * @return the builtin field registry artifact
+     */
+    public FieldRegistryArtifact loadBuiltin() {
+<span class="fc" id="L207">        LOG.debug(&quot;Loading builtin field registry (26 standard fields)&quot;);</span>
+
+<span class="fc" id="L209">        List&lt;FieldRegistryEntry&gt; builtinFields = BuiltinFieldRegistry.getFields();</span>
+
+<span class="fc" id="L211">        return new FieldRegistryArtifact(</span>
+                1, // schemaVersion
+                1, // registryVersion (builtin is version 1)
+                builtinFields,
+                null, // checksum - not computed for builtin
+                Instant.EPOCH, // createdAt
+                &quot;builtin&quot; // createdBy
+        );
+    }
+
+    /**
+     * Checks if the S3 storage is accessible.
+     *
+     * @return true if S3 is accessible, false otherwise
+     */
+    public boolean isStorageAccessible() {
+        try {
+            software.amazon.awssdk.services.s3.model.HeadBucketRequest headBucketRequest =
+<span class="fc" id="L229">                    software.amazon.awssdk.services.s3.model.HeadBucketRequest.builder()</span>
+<span class="fc" id="L230">                            .bucket(bucketName)</span>
+<span class="fc" id="L231">                            .build();</span>
+
+<span class="fc" id="L233">            s3Client.headBucket(headBucketRequest);</span>
+<span class="fc" id="L234">            return true;</span>
+
+<span class="fc" id="L236">        } catch (Exception e) {</span>
+<span class="fc" id="L237">            LOG.debugf(&quot;S3 storage is not accessible: %s&quot;, e.getMessage());</span>
+<span class="fc" id="L238">            return false;</span>
+        }
+    }
+
+    private String computeChecksum(byte[] content) {
+        try {
+<span class="fc" id="L244">            MessageDigest digest = MessageDigest.getInstance(&quot;SHA-256&quot;);</span>
+<span class="fc" id="L245">            byte[] hash = digest.digest(content);</span>
+<span class="fc" id="L246">            return HexFormat.of().formatHex(hash);</span>
+<span class="nc" id="L247">        } catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L248">            LOG.error(&quot;SHA-256 algorithm not available&quot;, e);</span>
+<span class="nc" id="L249">            return &quot;&quot;;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

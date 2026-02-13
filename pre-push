@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+set -eu
+
+blocked_paths=$(git ls-files | grep -Ei '^(TODO\.md|STATUS\.md|status\.md|SESSION_HANDOFF\.md|docs/archive/|docs/.*/archive/|docs/.*todo.*\.md$|docs/.*status.*\.md$)' || true)
+if [ -n "${blocked_paths}" ]; then
+  echo "[pre-push] Blocked: planning/archive docs are tracked."
+  echo "[pre-push] Remove these files from git tracking before pushing:"
+  echo "${blocked_paths}"
+  exit 1
+fi
+
+bad_docs_case=$(git ls-files docs | grep -E '\.md$' | grep -Ev '^docs/README\.md$|^docs/codemap\.md$|^docs/.*/README\.md$' | grep -E '[A-Z]' || true)
+if [ -n "${bad_docs_case}" ]; then
+  echo "[pre-push] Blocked: docs markdown file names must be lowercase kebab-case."
+  echo "[pre-push] Fix these tracked files:"
+  echo "${bad_docs_case}"
+  exit 1
+fi
+
+exit 0

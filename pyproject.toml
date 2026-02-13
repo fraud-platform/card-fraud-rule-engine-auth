@@ -1,0 +1,68 @@
+[project]
+name = "card-fraud-rule-engine"
+version = "1.0.0"
+description = "Card Fraud Rule Engine"
+requires-python = ">=3.11"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["cli", "scripts"]
+
+[tool.uv]
+package = true
+
+[dependency-groups]
+dev = [
+    "boto3>=1.42.37",
+    "httpx>=0.27",
+    "pytest>=8.0",
+    "locust>=2.32",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+# Infrastructure
+infra-local-up = "cli.redis_local:up"
+infra-local-down = "cli.redis_local:down"
+redis-local-up = "cli.redis_local:redis_up"
+redis-local-down = "cli.redis_local:redis_down"
+redis-local-reset = "cli.redis_local:reset"
+redis-local-verify = "cli.redis_local:verify"
+
+# Dev server
+doppler-local = "cli.doppler_local:main"
+doppler-local-test = "cli.doppler_local:test_local"
+doppler-load-test = "cli.doppler_load_test:main"
+doppler-secrets-verify = "cli.doppler_local:secrets_verify"
+
+# Auth0
+auth0-bootstrap = "cli.auth0_bootstrap:main"
+auth0-verify = "cli.auth0_verify:main"
+
+# Testing (simplified)
+test-unit = "cli.test_runner:test_unit"
+test-smoke = "cli.test_runner:test_smoke"
+test-integration = "cli.test_runner:test_integration"
+test-all = "cli.test_runner:test_all"
+test-coverage = "cli.test_runner:test_coverage"
+test-e2e = "cli.test_runner:test_e2e"
+test-e2e-no-auth = "cli.test_runner:test_e2e_no_auth"
+test-load = "cli.test_runner:test_load"
+test-load-no-auth = "cli.test_runner:test_load_no_auth"
+snyk-test = "cli.snyk_gate:test"
+
+# Data setup
+test-data-setup = "cli.test_data_setup:main"
+
+# Legacy aliases
+e2e-test = "cli.e2e_test_runner:main"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["e2e"]

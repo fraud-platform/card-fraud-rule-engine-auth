@@ -1,0 +1,1335 @@
+# Comprehensive AUTH Test Ruleset (100+ rules)
+# This ruleset is designed for local testing and load testing
+# Covers various permutations of rule fields, operators, and combinations
+
+key: CARD_AUTH
+version: 1
+name: Comprehensive Test Ruleset
+description: 100+ test rules covering various field permutations and combinations
+evaluation_type: AUTH
+
+rules:
+  # ========== AMOUNT-BASED RULES (1-15) ==========
+
+  - id: rule-001
+    name: Amount GT 100
+    priority: 100
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: gt
+        value: 100
+
+  - id: rule-002
+    name: Amount GT 500
+    priority: 99
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: gt
+        value: 500
+
+  - id: rule-003
+    name: Amount GT 1000
+    priority: 98
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: gt
+        value: 1000
+
+  - id: rule-004
+    name: Amount GT 5000
+    priority: 97
+    enabled: true
+    action: DECLINE
+    conditions:
+      - field: amount
+        operator: gt
+        value: 5000
+
+  - id: rule-005
+    name: Amount GTE 100
+    priority: 96
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: gte
+        value: 100
+
+  - id: rule-006
+    name: Amount LT 10
+    priority: 95
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: lt
+        value: 10
+
+  - id: rule-007
+    name: Amount LTE 5
+    priority: 94
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: lte
+        value: 5
+
+  - id: rule-008
+    name: Amount EQ 100
+    priority: 93
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: eq
+        value: 100
+
+  - id: rule-009
+    name: Amount NE 100
+    priority: 92
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: ne
+        value: 100
+
+  - id: rule-010
+    name: Amount Range 500-5000
+    priority: 91
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: gte
+        value: 500
+      - field: amount
+        operator: lte
+        value: 5000
+
+  - id: rule-011
+    name: Round Amount Check
+    priority: 90
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: eq
+        value: 999
+
+  - id: rule-012
+    name: High Velocity Card
+    priority: 89
+    enabled: true
+    action: DECLINE
+    conditions:
+      - field: amount
+        operator: gt
+        value: 50
+    velocity:
+      dimension: card_hash
+      window_seconds: 3600
+      threshold: 5
+      action: DECLINE
+
+  - id: rule-013
+    name: Amount GT 10000 DECLINE
+    priority: 88
+    enabled: true
+    action: DECLINE
+    conditions:
+      - field: amount
+        operator: gt
+        value: 10000
+
+  - id: rule-014
+    name: Amount with Currency USD
+    priority: 87
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: gt
+        value: 1000
+      - field: currency
+        operator: eq
+        value: USD
+
+  - id: rule-015
+    name: Amount with Currency EUR High
+    priority: 86
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: gt
+        value: 800
+      - field: currency
+        operator: eq
+        value: EUR
+
+  # ========== COUNTRY-BASED RULES (16-30) ==========
+
+  - id: rule-016
+    name: Country US
+    priority: 85
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: country_code
+        operator: eq
+        value: US
+
+  - id: rule-017
+    name: Country High Risk NG
+    priority: 84
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: country_code
+        operator: eq
+        value: NG
+
+  - id: rule-018
+    name: Country High Risk RU
+    priority: 83
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: country_code
+        operator: eq
+        value: RU
+
+  - id: rule-019
+    name: Country High Risk CN
+    priority: 82
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: country_code
+        operator: eq
+        value: CN
+
+  - id: rule-020
+    name: High Risk Countries IN
+    priority: 81
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: country_code
+        operator: in
+        values:
+          - NG
+          - RU
+          - CN
+          - IR
+          - KP
+          - PK
+          - BD
+          - UA
+
+  - id: rule-021
+    name: Safe Countries IN
+    priority: 80
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: country_code
+        operator: in
+        values:
+          - US
+          - GB
+          - CA
+          - AU
+          - JP
+          - DE
+          - FR
+
+  - id: rule-022
+    name: International NOT US
+    priority: 79
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: country_code
+        operator: not_in
+        values:
+          - US
+          - CA
+          - GB
+
+  - id: rule-023
+    name: Country NE US
+    priority: 78
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: country_code
+        operator: ne
+        value: US
+
+  - id: rule-024
+    name: EU Country
+    priority: 77
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: country_code
+        operator: in
+        values:
+          - DE
+          - FR
+          - IT
+          - ES
+          - NL
+          - BE
+          - AT
+          - PT
+
+  - id: rule-025
+    name: APAC Country
+    priority: 76
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: country_code
+        operator: in
+        values:
+          - JP
+          - SG
+          - HK
+          - AU
+          - IN
+          - MY
+          - TH
+          - VN
+
+  - id: rule-026
+    name: Latin America Country
+    priority: 75
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: country_code
+        operator: in
+        values:
+          - MX
+          - BR
+          - AR
+          - CO
+          - PE
+          - CL
+
+  - id: rule-027
+    name: High Amount High Risk Country
+    priority: 74
+    enabled: true
+    action: DECLINE
+    conditions:
+      - field: amount
+        operator: gt
+        value: 500
+      - field: country_code
+        operator: in
+        values:
+          - NG
+          - RU
+          - CN
+
+  - id: rule-028
+    name: Country Code Contains US
+    priority: 73
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: country_code
+        operator: contains
+        value: US
+
+  - id: rule-029
+    name: Country Code Starts with GB
+    priority: 72
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: country_code
+        operator: starts_with
+        value: GB
+
+   - id: rule-030
+    name: Country Code Ends WithLAND
+    priority: 71
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: country_code
+        operator: ends_with
+        value: LAND
+
+  # ========== MERCHANT-BASED RULES (31-50) ==========
+
+  - id: rule-031
+    name: Merchant ID Amazon
+    priority: 70
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: merchant_id
+        operator: eq
+        value: amazon
+
+  - id: rule-032
+    name: Merchant Name Contains Amazon
+    priority: 69
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: merchant_name
+        operator: contains
+        value: AMAZON
+
+  - id: rule-033
+    name: Merchant Category Electronics
+    priority: 68
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: merchant_category
+        operator: eq
+        value: Electronics
+
+  - id: rule-034
+    name: MCC 5732 - Electronics
+    priority: 67
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: merchant_category_code
+        operator: eq
+        value: "5732"
+
+  - id: rule-035
+    name: MCC 5734 - Computer Software
+    priority: 66
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: merchant_category_code
+        operator: eq
+        value: "5734"
+
+  - id: rule-036
+    name: MCC 5812 - Gambling
+    priority: 65
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: merchant_category_code
+        operator: eq
+        value: "5812"
+
+  - id: rule-037
+    name: MCC 5813 - Gambling
+    priority: 64
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: merchant_category_code
+        operator: eq
+        value: "5813"
+
+  - id: rule-038
+    name: MCC 5814 - Gambling
+    priority: 63
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: merchant_category_code
+        operator: eq
+        value: "5814"
+
+  - id: rule-039
+    name: MCC 7995 - Gambling
+    priority: 62
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: merchant_category_code
+        operator: eq
+        value: "7995"
+
+  - id: rule-040
+    name: MCC 5912 - Drug Stores
+    priority: 61
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: merchant_category_code
+        operator: eq
+        value: "5912"
+
+  - id: rule-041
+    name: MCC 5913 - Pharmacies
+    priority: 60
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: merchant_category_code
+        operator: eq
+        value: "5913"
+
+  - id: rule-042
+    name: MCC 5411 - Grocery Stores
+    priority: 59
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: merchant_category_code
+        operator: eq
+        value: "5411"
+
+  - id: rule-043
+    name: MCC 5541 - Service Stations
+    priority: 58
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: merchant_category_code
+        operator: eq
+        value: "5541"
+
+  - id: rule-044
+    name: MCC 5814 - Fast Food
+    priority: 57
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: merchant_category_code
+        operator: eq
+        value: "5814"
+
+  - id: rule-045
+    name: High Risk Merchant
+    priority: 56
+    enabled: true
+    action: DECLINE
+    conditions:
+      - field: merchant_id
+        operator: starts_with
+        value: high_risk_
+
+  - id: rule-046
+    name: Unknown Merchant
+    priority: 55
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: merchant_id
+        operator: starts_with
+        value: unknown_
+
+  - id: rule-047
+    name: New Merchant Pattern
+    priority: 54
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: merchant_id
+        operator: regex
+        value: "new_merch_.*"
+
+  - id: rule-048
+    name: Merchant Categories IN
+    priority: 53
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: merchant_category_code
+        operator: in
+        values:
+          - "5994"
+          - "5995"
+          - "5996"
+
+  - id: rule-049
+    name: Merchant Name Pattern Jewelry
+    priority: 52
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: merchant_name
+        operator: regex
+        value: ".*(jewelry|diamond|gold).*"
+
+  - id: rule-050
+    name: Merchant Name Pattern Electronics
+    priority: 51
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: merchant_name
+        operator: regex
+        value: ".*(electronics|gadget|tech).*"
+
+  # ========== CARD-PRESENCE RULES (51-60) ==========
+
+  - id: rule-051
+    name: Card Not Present
+    priority: 50
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: card_present
+        operator: eq
+        value: false
+
+  - id: rule-052
+    name: Card Not Present High Amount
+    priority: 49
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: card_present
+        operator: eq
+        value: false
+      - field: amount
+        operator: gt
+        value: 500
+
+  - id: rule-053
+    name: Card Present Approve
+    priority: 48
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: card_present
+        operator: eq
+        value: true
+
+  - id: rule-054
+    name: CNP with Very High Amount
+    priority: 47
+    enabled: true
+    action: DECLINE
+    conditions:
+      - field: card_present
+        operator: eq
+        value: false
+      - field: amount
+        operator: gt
+        value: 2000
+
+  - id: rule-055
+    name: CNP International
+    priority: 46
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: card_present
+        operator: eq
+        value: false
+      - field: country_code
+        operator: not_in
+        values:
+          - US
+          - CA
+          - GB
+
+  - id: rule-056
+    name: CNP Night Transaction
+    priority: 45
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: card_present
+        operator: eq
+        value: false
+
+  - id: rule-057
+    name: Card Present Low Risk
+    priority: 44
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: card_present
+        operator: eq
+        value: true
+      - field: amount
+        operator: lt
+        value: 1000
+
+  - id: rule-058
+    name: Entry Mode ECOM
+    priority: 43
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: entry_mode
+        operator: eq
+        value: ECOM
+
+  - id: rule-059
+    name: Entry Mode CONTACTLESS
+    priority: 42
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: entry_mode
+        operator: in
+        values:
+          - CHIP
+          - CONTACTLESS
+
+  - id: rule-060
+    name: Entry Mode MOTO
+    priority: 41
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: entry_mode
+        operator: eq
+        value: MOTO
+
+  # ========== IP/DEVICE-BASED RULES (61-75) ==========
+
+  - id: rule-061
+    name: Private IP Address
+    priority: 40
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: ip_address
+        operator: regex
+        value: "(192\\.168\\.|10\\.|172\\.(1[6-9]|2[0-9]|3[0-1])\\..*"
+
+  - id: rule-062
+    name: VPN Detected
+    priority: 39
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: ip_address
+        operator: regex
+        value: ".*(vpn|proxy|tor|anonymous).*"
+
+  - id: rule-063
+    name: IP High Risk Country
+    priority: 38
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: ip_address
+        operator: starts_with
+        value: "41."  # Nigeria IP range
+
+  - id: rule-064
+    name: IP Country Mismatch
+    priority: 37
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: country_code
+        operator: eq
+        value: US
+      - field: ip_address
+        operator: not_regex
+        value: "^(24\\.|50\\.|64\\.|65\\.|66\\.|67\\.|68\\.|69\\.|70\\.|71\\.|72\\.|73\\.|74\\.|75\\.|76\\.|8[0-9]\\.|96\\.|97\\.|98\\.|99\\.|100\\.|128\\.|129\\.|130\\.|131\\.\\.|132\\.|134\\.\\.|135\\.\\.|136\\.|137\\.|138\\.|139\\.|140\\.|141\\.|142\\.|143\\.|144\\.|146\\.|147\\.|148\\.|149\\.|152\\.|153\\.|154\\.|155\\.|156\\.|157\\.|158\\.|159\\.|160\\.|161\\.|162\\.|163\\.|164\\.|165\\.|166\\.|167\\.|168\\.|169\\.|170\\.|171\\.|172\\.|173\\.|174\\.|175\\.|176\\.|177\\.|178\\.|179\\.|180\\.|181\\.|182\\.|183\\.|184\\.|185\\.|186\\.|187\\.|188\\.|189\\.|190\\.|191\\.|192\\.|193\\.|194\\.|195\\.|196\\.|197\\.|198\\.|199\\.|200\\.|201\\.|202\\.|203\\.|204\\.|205\\.|206\\.|207\\.|208\\.|209\\.|210\\.|211\\.|212\\.|213\\.|216\\.\\.|217\\.|224\\.\\.)"
+
+  - id: rule-065
+    name: Device ID New Pattern
+    priority: 36
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: device_id
+        operator: starts_with
+        value: new_device_
+
+  - id: rule-066
+    name: Device ID Unknown
+    priority: 35
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: device_id
+        operator: eq
+        value: unknown
+
+  - id: rule-067
+    name: Device Velocity High
+    priority: 34
+    enabled: true
+    action: DECLINE
+    conditions:
+      - field: amount
+        operator: gt
+        value: 100
+    velocity:
+      dimension: device_id
+      window_seconds: 3600
+      threshold: 20
+      action: DECLINE
+
+  - id: rule-068
+    name: IP Velocity High
+    priority: 33
+    enabled: true
+    action: DECLINE
+    conditions:
+      - field: amount
+        operator: gt
+        value: 200
+    velocity:
+      dimension: ip_address
+      window_seconds: 3600
+      threshold: 15
+      action: DECLINE
+
+  - id: rule-069
+    name: IP 5min Velocity
+    priority: 32
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: gt
+        value: 100
+    velocity:
+      dimension: ip_address
+      window_seconds: 300
+      threshold: 5
+      action: REVIEW
+
+  - id: rule-070
+    name: Card 5min Velocity
+    priority: 31
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: gt
+        value: 50
+    velocity:
+      dimension: card_hash
+      window_seconds: 300
+      threshold: 3
+      action: REVIEW
+
+  - id: rule-071
+    name: Card 24h Velocity
+    priority: 30
+    enabled: true
+    action: DECLINE
+    conditions:
+      - field: amount
+        operator: gt
+        value: 100
+    velocity:
+      dimension: card_hash
+      window_seconds: 86400
+      threshold: 50
+      action: DECLINE
+
+  - id: rule-072
+    name: Multiple Velocities Exceeded
+    priority: 29
+    enabled: true
+    action: DECLINE
+    velocity:
+      dimension: card_hash
+      window_seconds: 3600
+      threshold: 10
+      action: DECLINE
+
+  - id: rule-073
+    name: Device Velocity 24h
+    priority: 28
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: gt
+        value: 200
+    velocity:
+      dimension: device_id
+      window_seconds: 86400
+      threshold: 50
+      action: REVIEW
+
+  - id: rule-074
+    name: IP 24h Velocity
+    priority: 27
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: amount
+        operator: gt
+        value: 300
+    velocity:
+      dimension: ip_address
+      window_seconds: 86400
+      threshold: 100
+      action: REVIEW
+
+  - id: rule-075
+    name: IP Device Combo Risk
+    priority: 26
+    enabled: true
+    action: DECLINE
+    conditions:
+      - field: amount
+        operator: gt
+        value: 500
+    velocity:
+      dimension: ip_address
+      window_seconds: 300
+      threshold: 3
+      action: DECLINE
+    velocity:
+      dimension: device_id
+      window_seconds: 300
+      threshold: 3
+      action: DECLINE
+
+  # ========== EMAIL/BASED RULES (76-85) ==========
+
+  - id: rule-076
+    name: Suspicious Email Pattern
+    priority: 25
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: email
+        operator: regex
+        value: "(tempmail|guerrillamail|10minutemail|mailinator|yopmail|trashmail|throwaway| disposable).*"
+
+  - id: rule-077
+    name: Free Email Provider
+    priority: 24
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: email
+        operator: regex
+        value: ".*(gmail|yahoo|outlook|hotmail|live|msn|aol|yahoo\\.co\\.uk|googlemail|mail\\.ru).*"
+
+  - id: rule-078
+    name: Corporate Email
+    priority: 23
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: email
+        operator: regex
+        value: ".*@(company|corp|business|enterprise|org)\\..*"
+
+  - id: rule-079
+    name: Email Domain Unknown
+    priority: 22
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: email
+        operator: regex
+        value: ".*@(unknown|temp|test|demo|example)\\..*"
+
+  - id: rule-080
+    name: Email Plus Amount Combo
+    priority: 21
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: email
+        operator: regex
+        value: ".*(tempmail|guerrillamail).*"
+      - field: amount
+        operator: gt
+        value: 200
+
+  - id: rule-081
+    name: Email Contains Plus
+    priority: 20
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: email
+        operator: contains
+        value: "+"
+
+  - id: rule-082
+    name: Email Numeric Pattern
+    priority: 19
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: email
+        operator: regex
+        value: ".*[0-9]{5,}.*"
+
+  - id: rule-083
+    name: Email Country Mismatch
+    priority: 18
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: email
+        operator: ends_with
+        value: ".ru"
+      - field: country_code
+        operator: ne
+        value: RU
+
+  - id: rule-084
+    name: High Amount Free Email
+    priority: 17
+    enabled: true
+    action: DECLINE
+    conditions:
+      - field: email
+        operator: regex
+        value: ".*(gmail|yahoo|hotmail|outlook).*"
+      - field: amount
+        operator: gt
+        value: 3000
+
+  - id: rule-085
+    name: Email Domain NOT_IN
+    priority: 16
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: email
+        operator: not_in
+        values:
+          - "@company.com"
+          - "@corp.com"
+          - "@business.com"
+
+  # ========== CARD NETWORK/BIN RULES (86-95) ==========
+
+  - id: rule-086
+    name: Card Network VISA
+    priority: 15
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: card_network
+        operator: eq
+        value: VISA
+
+  - id: rule-087
+    name: Card Network MASTERCARD
+    priority: 14
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: card_network
+        operator: eq
+        value: MASTERCARD
+
+  - id: rule-088
+    name: Card Network AMEX High Risk
+    priority: 13
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: card_network
+        operator: eq
+        value: AMEX
+      - field: amount
+        operator: gt
+        value: 1000
+
+  - id: rule-089
+    name: Card BIN 411111
+    priority: 12
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: card_bin
+        operator: eq
+        value: "411111"
+
+  - id: rule-090
+    name: Card BIN 434256
+    priority: 11
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: card_bin
+        operator: eq
+        value: "434256"
+
+  - id: rule-091
+    name: Card BIN 375855
+    priority: 10
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: card_bin
+        operator: eq
+        value: "375855"
+
+  - id: rule-092
+    name: Card BIN Pattern Test
+    priority: 9
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: card_bin
+        operator: starts_with
+        value: "42"
+
+  - id: rule-093
+    name: Prepaid Card BIN
+    priority: 8
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: card_bin
+        operator: in
+        values:
+          - "442211"
+          - "427942"
+          - "433894"
+
+  - id: rule-094
+    name: Card Network NOT_IN
+    priority: 7
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: card_network
+        operator: not_in
+        values:
+          - VISA
+          - MASTERCARD
+          - AMEX
+          - DISCOVER
+
+  - id: rule-095
+    name: Card Logo Match
+    priority: 6
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: card_network
+        operator: eq
+        value: VISA
+      - field: card_logo
+        operator: eq
+        value: VISA
+
+  # ========== TRANSACTION TYPE RULES (96-100) ==========
+
+  - id: rule-096
+    name: Transaction Type REFUND
+    priority: 5
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: transaction_type
+        operator: eq
+        value: REFUND
+
+  - id: rule-097
+    name: Transaction Type REVERSAL
+    priority: 4
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: transaction_type
+        operator: eq
+        value: REVERSAL
+
+  - id: rule-098
+    name: Transaction Type CASH_ADVANCE
+    priority: 3
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: transaction_type
+        operator: eq
+        value: CASH_ADVANCE
+
+  - id: rule-099
+    name: Transaction Type QUASI_CASH
+    priority: 2
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: transaction_type
+        operator: eq
+        value: QUASI_CASH
+
+  - id: rule-100
+    name: Transaction Type PURCHASE Default Approve
+    priority: 1
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: transaction_type
+        operator: eq
+        value: PURCHASE
+      - field: country_code
+        operator: in
+        values:
+          - US
+          - GB
+          - CA
+
+  # ========== COMBINATION RULES (101-110) ==========
+
+  - id: rule-101
+    name: High Amount International Night
+    priority: 100
+    enabled: true
+    action: DECLINE
+    conditions:
+      - field: amount
+        operator: gt
+        value: 2000
+      - field: country_code
+        operator: not_in
+        values:
+          - US
+          - CA
+          - GB
+
+  - id: rule-102
+    name: CNP High Amount Night
+    priority: 99
+    enabled: true
+    action: DECLINE
+    conditions:
+      - field: card_present
+        operator: eq
+        value: false
+      - field: amount
+        operator: gt
+        value: 1000
+      - field: entry_mode
+        operator: eq
+        value: ECOM
+
+  - id: rule-103
+    name: High Risk Merchant High Amount
+    priority: 98
+    enabled: true
+    action: DECLINE
+    conditions:
+      - field: merchant_id
+        operator: starts_with
+        value: high_risk_
+      - field: amount
+        operator: gt
+        value: 2000
+
+  - id: rule-104
+    name: Multiple Velocity Exceeded
+    priority: 97
+    enabled: true
+    action: DECLINE
+    velocity:
+      dimension: card_hash
+      window_seconds: 300
+      threshold: 3
+      action: DECLINE
+
+  - id: rule-105
+    name: Velocity with Country Risk
+    priority: 96
+    enabled: true
+    action: DECLINE
+    conditions:
+      - field: country_code
+        operator: in
+        values:
+          - NG
+          - RU
+          - CN
+    velocity:
+      dimension: card_hash
+      window_seconds: 3600
+      threshold: 3
+      action: DECLINE
+
+  - id: rule-106
+    name: New Card International High Value
+    priority: 95
+    enabled: true
+    action: DECLINE
+    conditions:
+      - field: card_hash
+        operator: starts_with
+        value: new_
+      - field: amount
+        operator: gt
+        value: 1000
+      - field: country_code
+        operator: not_in
+        values:
+          - US
+          - GB
+
+  - id: rule-107
+    name: IP Device Same
+    priority: 94
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: ip_address
+        operator: eq
+        value: "192.168.1.1"
+      - field: device_id
+        operator: eq
+        value: "device_000"
+
+  - id: rule-108
+    name: Billing Shipping Mismatch
+    priority: 93
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: billing_country
+        operator: ne
+        value: shipping_country
+
+  - id: rule-109
+    name: Email IP Mismatch
+    priority: 92
+    enabled: true
+    action: REVIEW
+    conditions:
+      - field: email
+        operator: regex
+        value: ".*\\.ru$"
+      - field: country_code
+        operator: ne
+        value: RU
+
+  - id: rule-110
+    name: Safe Transaction Default
+    priority: 1
+    enabled: true
+    action: APPROVE
+    conditions:
+      - field: amount
+        operator: lte
+        value: 50
+      - field: country_code
+        operator: in
+        values:
+          - US
+          - GB
+          - CA
+      - field: card_present
+        operator: eq
+        value: true

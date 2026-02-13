@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FieldRegistryWatcher.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.watcher</a> &gt; <span class="el_source">FieldRegistryWatcher.java</span></div><h1>FieldRegistryWatcher.java</h1><pre class="source lang-java linenums">package com.fraud.engine.watcher;
+
+import com.fraud.engine.dto.FieldRegistryManifest;
+import com.fraud.engine.loader.FieldRegistryLoader;
+import com.fraud.engine.service.FieldRegistryService;
+import com.fraud.engine.util.AlertLogger;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Watches the S3 field registry manifest for changes and triggers hot-reload.
+ * &lt;p&gt;
+ * This background service polls the manifest.json file periodically and
+ * triggers a registry reload when the version changes. The reload is
+ * non-blocking - the current registry continues serving requests during
+ * the swap.
+ * &lt;p&gt;
+ * Configuration:
+ * &lt;ul&gt;
+ *   &lt;li&gt;app.field-registry.enable-hot-reload: Enable/disable watcher (default: true)&lt;/li&gt;
+ *   &lt;li&gt;app.field-registry.poll-interval: Poll interval in seconds (default: 30)&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+@ApplicationScoped
+public class FieldRegistryWatcher {
+
+<span class="fc" id="L36">    private static final Logger LOG = Logger.getLogger(FieldRegistryWatcher.class);</span>
+
+    @ConfigProperty(name = &quot;app.field-registry.enable-hot-reload&quot;, defaultValue = &quot;true&quot;)
+    boolean hotReloadEnabled;
+
+    @ConfigProperty(name = &quot;app.field-registry.poll-interval-seconds&quot;, defaultValue = &quot;30&quot;)
+    int pollIntervalSeconds;
+
+    private final FieldRegistryLoader loader;
+    private final FieldRegistryService service;
+
+    private ScheduledExecutorService scheduler;
+<span class="fc" id="L48">    private volatile int lastVersion = -1;</span>
+<span class="fc" id="L49">    private volatile boolean running = false;</span>
+
+    @Inject
+<span class="fc" id="L52">    public FieldRegistryWatcher(FieldRegistryLoader loader, FieldRegistryService service) {</span>
+<span class="fc" id="L53">        this.loader = loader;</span>
+<span class="fc" id="L54">        this.service = service;</span>
+<span class="fc" id="L55">    }</span>
+
+    @PostConstruct
+    void start() {
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        if (!hotReloadEnabled) {</span>
+<span class="fc" id="L60">            LOG.info(&quot;FieldRegistryWatcher is disabled via configuration&quot;);</span>
+<span class="fc" id="L61">            return;</span>
+        }
+
+<span class="fc" id="L64">        LOG.infof(&quot;Starting FieldRegistryWatcher (poll interval: %ds)&quot;, pollIntervalSeconds);</span>
+
+        // Initialize with current version
+<span class="fc" id="L67">        FieldRegistryManifest manifest = loader.loadManifest();</span>
+<span class="pc bpc" id="L68" title="1 of 2 branches missed.">        if (manifest != null) {</span>
+<span class="fc" id="L69">            lastVersion = manifest.getRegistryVersion();</span>
+<span class="fc" id="L70">            LOG.infof(&quot;Initial field registry version: %d&quot;, lastVersion);</span>
+        }
+
+<span class="fc" id="L73">        running = true;</span>
+<span class="fc" id="L74">        scheduler = Executors.newSingleThreadScheduledExecutor(r -&gt; {</span>
+<span class="fc" id="L75">            Thread thread = new Thread(r, &quot;field-registry-watcher&quot;);</span>
+<span class="fc" id="L76">            thread.setDaemon(true);</span>
+<span class="fc" id="L77">            return thread;</span>
+        });
+
+<span class="fc" id="L80">        scheduler.scheduleAtFixedRate(this::checkForUpdates, 0, pollIntervalSeconds, TimeUnit.SECONDS);</span>
+
+<span class="fc" id="L82">        LOG.info(&quot;FieldRegistryWatcher started successfully&quot;);</span>
+<span class="fc" id="L83">    }</span>
+
+    @PreDestroy
+    void stop() {
+<span class="pc bpc" id="L87" title="1 of 2 branches missed.">        if (!running) {</span>
+<span class="nc" id="L88">            return;</span>
+        }
+
+<span class="fc" id="L91">        LOG.info(&quot;Stopping FieldRegistryWatcher...&quot;);</span>
+<span class="fc" id="L92">        running = false;</span>
+
+<span class="pc bpc" id="L94" title="1 of 2 branches missed.">        if (scheduler != null) {</span>
+<span class="fc" id="L95">            scheduler.shutdown();</span>
+            try {
+<span class="pc bpc" id="L97" title="1 of 2 branches missed.">                if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {</span>
+<span class="nc" id="L98">                    scheduler.shutdownNow();</span>
+                }
+<span class="nc" id="L100">            } catch (InterruptedException e) {</span>
+<span class="nc" id="L101">                scheduler.shutdownNow();</span>
+<span class="nc" id="L102">                Thread.currentThread().interrupt();</span>
+<span class="fc" id="L103">            }</span>
+        }
+
+<span class="fc" id="L106">        LOG.info(&quot;FieldRegistryWatcher stopped&quot;);</span>
+<span class="fc" id="L107">    }</span>
+
+    /**
+     * Checks for updates by polling the manifest file.
+     * &lt;p&gt;
+     * If the registry version has changed, triggers a reload of the field registry.
+     */
+    private void checkForUpdates() {
+<span class="fc bfc" id="L115" title="All 2 branches covered.">        if (!running) {</span>
+<span class="fc" id="L116">            return;</span>
+        }
+
+        try {
+<span class="fc" id="L120">            FieldRegistryManifest manifest = loader.loadManifest();</span>
+
+<span class="fc bfc" id="L122" title="All 2 branches covered.">            if (manifest == null) {</span>
+                // Manifest not found - keep current version
+<span class="fc" id="L124">                LOG.debug(&quot;Manifest not found, keeping current registry version&quot;);</span>
+<span class="fc" id="L125">                return;</span>
+            }
+
+<span class="fc" id="L128">            int currentVersion = manifest.getRegistryVersion();</span>
+
+            // Check if version has changed
+<span class="fc bfc" id="L131" title="All 2 branches covered.">            if (currentVersion &gt; lastVersion) {</span>
+<span class="fc" id="L132">                LOG.infof(&quot;Field registry update detected: %d -&gt; %d&quot;, lastVersion, currentVersion);</span>
+
+                try {
+                    // Trigger reload
+<span class="fc" id="L136">                    service.reload();</span>
+
+                    // Update last version only after successful reload
+<span class="fc" id="L139">                    int newVersion = service.getRegistryVersion();</span>
+<span class="fc" id="L140">                    lastVersion = newVersion;</span>
+
+<span class="fc" id="L142">                    LOG.infof(&quot;Field registry hot-reload completed: now at version %d&quot;, newVersion);</span>
+
+<span class="fc" id="L144">                } catch (Exception e) {</span>
+<span class="fc" id="L145">                    AlertLogger.hotReloadFailed(&quot;FieldRegistry&quot;, currentVersion, lastVersion, e.getMessage());</span>
+<span class="fc" id="L146">                }</span>
+<span class="pc bpc" id="L147" title="1 of 2 branches missed.">            } else if (currentVersion &lt; lastVersion) {</span>
+<span class="fc" id="L148">                AlertLogger.versionMismatch(&quot;FieldRegistry&quot;, lastVersion, currentVersion);</span>
+<span class="fc" id="L149">                lastVersion = currentVersion;</span>
+            }
+
+<span class="nc" id="L152">        } catch (Exception e) {</span>
+            // Hot-reload check failures are non-fatal
+<span class="nc" id="L154">            LOG.warnf(&quot;Hot-reload check failed: %s. Will retry on next poll.&quot;, e.getMessage());</span>
+<span class="fc" id="L155">        }</span>
+<span class="fc" id="L156">    }</span>
+
+    /**
+     * Manually triggers a check for updates.
+     * &lt;p&gt;
+     * Can be called via REST endpoint for admin-triggered reloads.
+     */
+    public void triggerCheck() {
+<span class="fc" id="L164">        LOG.debug(&quot;Manual trigger of field registry update check&quot;);</span>
+<span class="fc" id="L165">        checkForUpdates();</span>
+<span class="fc" id="L166">    }</span>
+
+    /**
+     * Returns whether the watcher is currently running.
+     *
+     * @return true if running, false otherwise
+     */
+    public boolean isRunning() {
+<span class="fc" id="L174">        return running;</span>
+    }
+
+    /**
+     * Returns the last known registry version.
+     *
+     * @return the last version
+     */
+    public int getLastVersion() {
+<span class="fc" id="L183">        return lastVersion;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

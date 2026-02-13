@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RedisStreamsOutboxClient.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.outbox</a> &gt; <span class="el_source">RedisStreamsOutboxClient.java</span></div><h1>RedisStreamsOutboxClient.java</h1><pre class="source lang-java linenums">package com.fraud.engine.outbox;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import io.vertx.mutiny.redis.client.RedisAPI;
+import io.vertx.mutiny.redis.client.Response;
+import jakarta.annotation.PostConstruct;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import com.fraud.engine.util.EngineMetrics;
+
+/**
+ * Redis Streams based outbox for AUTH -&gt; MONITORING handoff.
+ */
+@ApplicationScoped
+@jakarta.inject.Named(&quot;redis-outbox&quot;)
+<span class="fc" id="L28">public class RedisStreamsOutboxClient implements OutboxClient {</span>
+
+<span class="fc" id="L30">    private static final Logger LOG = Logger.getLogger(RedisStreamsOutboxClient.class);</span>
+
+    @ConfigProperty(name = &quot;app.outbox.mode&quot;, defaultValue = &quot;redis&quot;)
+    String mode;
+
+    @ConfigProperty(name = &quot;app.outbox.stream-key&quot;, defaultValue = &quot;fraud:outbox&quot;)
+    String streamKey;
+
+    @ConfigProperty(name = &quot;app.outbox.consumer-group&quot;, defaultValue = &quot;auth-monitoring-worker&quot;)
+    String consumerGroup;
+
+    @ConfigProperty(name = &quot;app.outbox.consumer-name&quot;, defaultValue = &quot;worker-1&quot;)
+    String consumerName;
+
+    @ConfigProperty(name = &quot;app.outbox.maxlen&quot;, defaultValue = &quot;200000&quot;)
+    long maxLen;
+
+    @ConfigProperty(name = &quot;app.outbox.read-count&quot;, defaultValue = &quot;50&quot;)
+    int readCount;
+
+    @ConfigProperty(name = &quot;app.outbox.block-ms&quot;, defaultValue = &quot;2000&quot;)
+    int blockMs;
+
+    @ConfigProperty(name = &quot;app.outbox.redis-timeout-seconds&quot;, defaultValue = &quot;5&quot;)
+    int redisTimeoutSeconds;
+
+    @Inject
+    RedisAPI redisAPI;
+
+    @Inject
+    ObjectMapper objectMapper;
+
+    @Inject
+    EngineMetrics engineMetrics;
+
+    private ObjectWriter outboxEventWriter;
+    private String maxLenValue;
+
+    @PostConstruct
+    void init() {
+<span class="fc" id="L70">        outboxEventWriter = objectMapper.writerFor(OutboxEvent.class);</span>
+<span class="fc" id="L71">        maxLenValue = String.valueOf(maxLen);</span>
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">        if (!isActive()) {</span>
+<span class="nc" id="L73">            return;</span>
+        }
+<span class="fc" id="L75">        ensureConsumerName();</span>
+<span class="fc" id="L76">        ensureGroup();</span>
+<span class="fc" id="L77">    }</span>
+
+    private void ensureConsumerName() {
+<span class="pc bpc" id="L80" title="1 of 2 branches missed.">        if (consumerName == null) {</span>
+<span class="nc" id="L81">            consumerName = &quot;&quot;;</span>
+        }
+<span class="fc" id="L83">        String normalized = consumerName.trim();</span>
+<span class="pc bpc" id="L84" title="4 of 6 branches missed.">        if (normalized.isEmpty() || &quot;worker-1&quot;.equalsIgnoreCase(normalized) || &quot;auto&quot;.equalsIgnoreCase(normalized)) {</span>
+<span class="fc" id="L85">            consumerName = &quot;worker-&quot; + UUID.randomUUID();</span>
+        } else {
+<span class="nc" id="L87">            consumerName = normalized;</span>
+        }
+<span class="fc" id="L89">    }</span>
+
+    @Override
+    public void ensureGroup() {
+<span class="pc bpc" id="L93" title="1 of 2 branches missed.">        if (!isActive()) {</span>
+<span class="nc" id="L94">            return;</span>
+        }
+        try {
+<span class="fc" id="L97">            redisAPI.xgroup(List.of(&quot;CREATE&quot;, streamKey, consumerGroup, &quot;$&quot;, &quot;MKSTREAM&quot;))</span>
+<span class="fc" id="L98">                    .await().atMost(Duration.ofSeconds(redisTimeoutSeconds));</span>
+<span class="fc" id="L99">            LOG.infof(&quot;Created Redis Stream group: %s on %s&quot;, consumerGroup, streamKey);</span>
+<span class="nc" id="L100">        } catch (Exception e) {</span>
+<span class="nc bnc" id="L101" title="All 4 branches missed.">            if (e.getMessage() != null &amp;&amp; e.getMessage().contains(&quot;BUSYGROUP&quot;)) {</span>
+<span class="nc" id="L102">                LOG.debugf(&quot;Redis group already exists: %s&quot;, consumerGroup);</span>
+            } else {
+<span class="nc" id="L104">                LOG.warnf(e, &quot;Failed to create Redis Stream group: %s&quot;, consumerGroup);</span>
+            }
+<span class="fc" id="L106">        }</span>
+<span class="fc" id="L107">    }</span>
+
+    @Override
+    public String append(OutboxEvent event) {
+<span class="pc bpc" id="L111" title="1 of 2 branches missed.">        if (!isActive()) {</span>
+<span class="nc" id="L112">            return null;</span>
+        }
+        try {
+<span class="fc" id="L115">            String payload = outboxEventWriter.writeValueAsString(event);</span>
+<span class="fc" id="L116">            List&lt;String&gt; args = new ArrayList&lt;&gt;(7);</span>
+<span class="fc" id="L117">            args.add(streamKey);</span>
+<span class="fc" id="L118">            args.add(&quot;MAXLEN&quot;);</span>
+<span class="fc" id="L119">            args.add(&quot;~&quot;);</span>
+<span class="fc" id="L120">            args.add(maxLenValue);</span>
+<span class="fc" id="L121">            args.add(&quot;*&quot;);</span>
+<span class="fc" id="L122">            args.add(&quot;payload&quot;);</span>
+<span class="fc" id="L123">            args.add(payload);</span>
+
+<span class="fc" id="L125">            Response response = redisAPI.xadd(args)</span>
+<span class="fc" id="L126">                    .await().atMost(Duration.ofSeconds(redisTimeoutSeconds));</span>
+<span class="pc bpc" id="L127" title="1 of 2 branches missed.">            String id = response != null ? response.toString() : null;</span>
+
+<span class="pc bpc" id="L129" title="1 of 2 branches missed.">            if (engineMetrics != null) {</span>
+<span class="nc" id="L130">                engineMetrics.incrementOutboxXaddSuccess();</span>
+            }
+<span class="fc" id="L132">            return id;</span>
+<span class="fc" id="L133">        } catch (Exception e) {</span>
+<span class="pc bpc" id="L134" title="1 of 2 branches missed.">            if (engineMetrics != null) {</span>
+<span class="nc" id="L135">                engineMetrics.incrementOutboxXaddFailure();</span>
+            }
+<span class="fc" id="L137">            throw new OutboxException(&quot;Failed to append to Redis Stream&quot;, e);</span>
+        }
+    }
+
+    @Override
+    public List&lt;OutboxEntry&gt; readBatch() {
+<span class="pc bpc" id="L143" title="1 of 2 branches missed.">        if (!isActive()) {</span>
+<span class="nc" id="L144">            return Collections.emptyList();</span>
+        }
+        try {
+<span class="fc" id="L147">            List&lt;String&gt; args = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L148">            args.add(&quot;GROUP&quot;);</span>
+<span class="fc" id="L149">            args.add(consumerGroup);</span>
+<span class="fc" id="L150">            args.add(consumerName);</span>
+<span class="fc" id="L151">            args.add(&quot;COUNT&quot;);</span>
+<span class="fc" id="L152">            args.add(String.valueOf(readCount));</span>
+<span class="fc" id="L153">            args.add(&quot;BLOCK&quot;);</span>
+<span class="fc" id="L154">            args.add(String.valueOf(blockMs));</span>
+<span class="fc" id="L155">            args.add(&quot;STREAMS&quot;);</span>
+<span class="fc" id="L156">            args.add(streamKey);</span>
+<span class="fc" id="L157">            args.add(&quot;&gt;&quot;);</span>
+
+            // Add extra buffer for BLOCK timeout + network round-trip
+<span class="fc" id="L160">            Duration timeout = Duration.ofMillis(blockMs).plus(Duration.ofSeconds(redisTimeoutSeconds));</span>
+<span class="fc" id="L161">            Response resp = redisAPI.xreadgroup(args)</span>
+<span class="fc" id="L162">                    .await().atMost(timeout);</span>
+<span class="pc bpc" id="L163" title="1 of 2 branches missed.">            if (resp == null) {</span>
+<span class="nc" id="L164">                return Collections.emptyList();</span>
+            }
+<span class="fc" id="L166">            return parseXReadResponse(resp);</span>
+<span class="fc" id="L167">        } catch (Exception e) {</span>
+<span class="fc" id="L168">            LOG.errorf(e, &quot;Failed to read from Redis Stream&quot;);</span>
+<span class="fc" id="L169">            return Collections.emptyList();</span>
+        }
+    }
+
+    @Override
+    public List&lt;OutboxEntry&gt; claimPendingBatch(long minIdleMs, int count) {
+<span class="nc bnc" id="L175" title="All 2 branches missed.">        if (!isActive()) {</span>
+<span class="nc" id="L176">            return Collections.emptyList();</span>
+        }
+        try {
+<span class="nc" id="L179">            List&lt;String&gt; args = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L180">            args.add(streamKey);</span>
+<span class="nc" id="L181">            args.add(consumerGroup);</span>
+<span class="nc" id="L182">            args.add(consumerName);</span>
+<span class="nc" id="L183">            args.add(String.valueOf(minIdleMs));</span>
+<span class="nc" id="L184">            args.add(&quot;0-0&quot;);</span>
+<span class="nc" id="L185">            args.add(&quot;COUNT&quot;);</span>
+<span class="nc" id="L186">            args.add(String.valueOf(count));</span>
+
+<span class="nc" id="L188">            Response resp = redisAPI.xautoclaim(args)</span>
+<span class="nc" id="L189">                    .await().atMost(Duration.ofSeconds(redisTimeoutSeconds));</span>
+<span class="nc bnc" id="L190" title="All 4 branches missed.">            if (resp == null || resp.size() &lt; 2) {</span>
+<span class="nc" id="L191">                return Collections.emptyList();</span>
+            }
+<span class="nc" id="L193">            Response messages = resp.get(1);</span>
+<span class="nc bnc" id="L194" title="All 2 branches missed.">            if (messages == null) {</span>
+<span class="nc" id="L195">                return Collections.emptyList();</span>
+            }
+<span class="nc" id="L197">            return parseXAutoClaimResponse(messages);</span>
+<span class="nc" id="L198">        } catch (Exception e) {</span>
+<span class="nc" id="L199">            LOG.warnf(e, &quot;Failed to claim pending outbox entries&quot;);</span>
+<span class="nc" id="L200">            return Collections.emptyList();</span>
+        }
+    }
+
+    @Override
+    public OutboxPendingSummary pendingSummary() {
+<span class="nc bnc" id="L206" title="All 2 branches missed.">        if (!isActive()) {</span>
+<span class="nc" id="L207">            return new OutboxPendingSummary(0, 0);</span>
+        }
+        try {
+<span class="nc" id="L210">            Response resp = redisAPI.xpending(List.of(streamKey, consumerGroup))</span>
+<span class="nc" id="L211">                    .await().atMost(Duration.ofSeconds(redisTimeoutSeconds));</span>
+<span class="nc bnc" id="L212" title="All 4 branches missed.">            if (resp == null || resp.size() == 0) {</span>
+<span class="nc" id="L213">                return new OutboxPendingSummary(0, 0);</span>
+            }
+<span class="nc" id="L215">            long totalPending = parseLong(resp.get(0), 0);</span>
+<span class="nc" id="L216">            long oldestIdleMs = 0;</span>
+<span class="nc bnc" id="L217" title="All 2 branches missed.">            if (totalPending &gt; 0) {</span>
+<span class="nc" id="L218">                Response detail = redisAPI.xpending(List.of(streamKey, consumerGroup, &quot;-&quot;, &quot;+&quot;, &quot;1&quot;))</span>
+<span class="nc" id="L219">                        .await().atMost(Duration.ofSeconds(redisTimeoutSeconds));</span>
+<span class="nc bnc" id="L220" title="All 4 branches missed.">                if (detail != null &amp;&amp; detail.size() &gt; 0) {</span>
+<span class="nc" id="L221">                    Response first = detail.get(0);</span>
+<span class="nc bnc" id="L222" title="All 4 branches missed.">                    if (first != null &amp;&amp; first.size() &gt;= 3) {</span>
+<span class="nc" id="L223">                        oldestIdleMs = parseLong(first.get(2), 0);</span>
+                    }
+                }
+            }
+<span class="nc" id="L227">            return new OutboxPendingSummary(totalPending, oldestIdleMs);</span>
+<span class="nc" id="L228">        } catch (Exception e) {</span>
+<span class="nc" id="L229">            LOG.debugf(e, &quot;Failed to read pending outbox summary&quot;);</span>
+<span class="nc" id="L230">            return new OutboxPendingSummary(0, 0);</span>
+        }
+    }
+
+    @Override
+    public void ack(String entryId) {
+<span class="pc bpc" id="L236" title="1 of 2 branches missed.">        if (!isActive()) {</span>
+<span class="nc" id="L237">            return;</span>
+        }
+        try {
+<span class="fc" id="L240">            redisAPI.xack(List.of(streamKey, consumerGroup, entryId))</span>
+<span class="fc" id="L241">                    .await().atMost(Duration.ofSeconds(redisTimeoutSeconds));</span>
+<span class="nc" id="L242">        } catch (Exception e) {</span>
+<span class="nc" id="L243">            LOG.warnf(e, &quot;Failed to ack entry %s&quot;, entryId);</span>
+<span class="fc" id="L244">        }</span>
+<span class="fc" id="L245">    }</span>
+
+    private List&lt;OutboxEntry&gt; parseXReadResponse(Response resp) {
+<span class="fc" id="L248">        List&lt;OutboxEntry&gt; entries = new ArrayList&lt;&gt;();</span>
+        // Response structure: [[stream, [[id, [field, value]...], ...]]]
+<span class="fc bfc" id="L250" title="All 2 branches covered.">        for (int i = 0; i &lt; resp.size(); i++) {</span>
+<span class="fc" id="L251">            Response streamResp = resp.get(i);</span>
+<span class="pc bpc" id="L252" title="2 of 4 branches missed.">            if (streamResp == null || streamResp.size() &lt; 2) {</span>
+<span class="nc" id="L253">                continue;</span>
+            }
+<span class="fc" id="L255">            Response messages = streamResp.get(1);</span>
+<span class="fc bfc" id="L256" title="All 2 branches covered.">            for (int j = 0; j &lt; messages.size(); j++) {</span>
+<span class="fc" id="L257">                Response message = messages.get(j);</span>
+<span class="fc" id="L258">                String id = message.get(0).toString();</span>
+<span class="fc" id="L259">                Response fields = message.get(1);</span>
+<span class="fc" id="L260">                Optional&lt;String&gt; payloadOpt = extractPayload(fields);</span>
+<span class="fc" id="L261">                payloadOpt.flatMap(this::deserializeEvent)</span>
+<span class="fc" id="L262">                        .ifPresent(evt -&gt; entries.add(new OutboxEntry(id, evt)));</span>
+            }
+        }
+<span class="fc" id="L265">        return entries;</span>
+    }
+
+    private List&lt;OutboxEntry&gt; parseXAutoClaimResponse(Response messages) {
+<span class="nc" id="L269">        List&lt;OutboxEntry&gt; entries = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L270" title="All 2 branches missed.">        for (int j = 0; j &lt; messages.size(); j++) {</span>
+<span class="nc" id="L271">            Response message = messages.get(j);</span>
+<span class="nc bnc" id="L272" title="All 4 branches missed.">            if (message == null || message.size() &lt; 2) {</span>
+<span class="nc" id="L273">                continue;</span>
+            }
+<span class="nc" id="L275">            String id = message.get(0).toString();</span>
+<span class="nc" id="L276">            Response fields = message.get(1);</span>
+<span class="nc" id="L277">            Optional&lt;String&gt; payloadOpt = extractPayload(fields);</span>
+<span class="nc" id="L278">            payloadOpt.flatMap(this::deserializeEvent)</span>
+<span class="nc" id="L279">                    .ifPresent(evt -&gt; entries.add(new OutboxEntry(id, evt)));</span>
+        }
+<span class="nc" id="L281">        return entries;</span>
+    }
+
+    private Optional&lt;String&gt; extractPayload(Response fields) {
+<span class="pc bpc" id="L285" title="1 of 2 branches missed.">        if (fields == null) {</span>
+<span class="nc" id="L286">            return Optional.empty();</span>
+        }
+<span class="fc bfc" id="L288" title="All 2 branches covered.">        for (int k = 0; k &lt; fields.size(); k += 2) {</span>
+<span class="pc bpc" id="L289" title="1 of 2 branches missed.">            if (k + 1 &gt;= fields.size()) {</span>
+<span class="nc" id="L290">                break;</span>
+            }
+<span class="fc" id="L292">            Response fieldName = fields.get(k);</span>
+<span class="pc bpc" id="L293" title="1 of 4 branches missed.">            if (fieldName != null &amp;&amp; &quot;payload&quot;.equals(fieldName.toString())) {</span>
+<span class="fc" id="L294">                Response value = fields.get(k + 1);</span>
+<span class="pc bpc" id="L295" title="1 of 2 branches missed.">                if (value != null) {</span>
+<span class="fc" id="L296">                    return Optional.of(value.toString(StandardCharsets.UTF_8));</span>
+                }
+            }
+        }
+<span class="fc" id="L300">        return Optional.empty();</span>
+    }
+
+    private Optional&lt;OutboxEvent&gt; deserializeEvent(String json) {
+        try {
+<span class="fc" id="L305">            return Optional.of(objectMapper.readValue(json, OutboxEvent.class));</span>
+<span class="nc" id="L306">        } catch (Exception e) {</span>
+<span class="nc" id="L307">            LOG.warnf(e, &quot;Failed to deserialize outbox payload&quot;);</span>
+<span class="nc" id="L308">            return Optional.empty();</span>
+        }
+    }
+
+    private long parseLong(Response response, long fallback) {
+<span class="nc bnc" id="L313" title="All 2 branches missed.">        if (response == null) {</span>
+<span class="nc" id="L314">            return fallback;</span>
+        }
+        try {
+<span class="nc" id="L317">            return Long.parseLong(response.toString());</span>
+<span class="nc" id="L318">        } catch (NumberFormatException e) {</span>
+<span class="nc" id="L319">            return fallback;</span>
+        }
+    }
+
+    private boolean isActive() {
+<span class="fc" id="L324">        return &quot;redis&quot;.equalsIgnoreCase(mode);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

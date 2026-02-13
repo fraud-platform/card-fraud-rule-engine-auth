@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RedisConnectionWarmer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.startup</a> &gt; <span class="el_source">RedisConnectionWarmer.java</span></div><h1>RedisConnectionWarmer.java</h1><pre class="source lang-java linenums">package com.fraud.engine.startup;
+
+import io.quarkus.redis.datasource.RedisDataSource;
+import io.quarkus.runtime.StartupEvent;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
+import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
+
+/**
+ * Warms up the Redis connection pool at application startup.
+ * &lt;p&gt;
+ * Pre-creates connections to eliminate cold-start latency on first requests.
+ * Without warmup, the first Redis operation can take 200-300ms while
+ * subsequent operations are 2-6ms.
+ */
+@ApplicationScoped
+<span class="fc" id="L19">public class RedisConnectionWarmer {</span>
+
+<span class="fc" id="L21">    private static final Logger LOG = Logger.getLogger(RedisConnectionWarmer.class);</span>
+
+    @Inject
+    RedisDataSource redisDataSource;
+
+    @ConfigProperty(name = &quot;quarkus.redis.max-pool-size&quot;, defaultValue = &quot;100&quot;)
+    int maxPoolSize;
+
+    void onStart(@Observes StartupEvent event) {
+<span class="fc" id="L30">        long startTime = System.currentTimeMillis();</span>
+<span class="fc" id="L31">        LOG.info(&quot;Warming up Redis connection pool...&quot;);</span>
+
+<span class="fc" id="L33">        int warmedConnections = 0;</span>
+<span class="fc" id="L34">        int targetConnections = Math.min(maxPoolSize, 50); // Warm up to 50 connections</span>
+
+        try {
+<span class="fc" id="L37">            var commands = redisDataSource.value(String.class);</span>
+            
+            // Pre-create connections by making lightweight PING commands
+<span class="fc bfc" id="L40" title="All 2 branches covered.">            for (int i = 0; i &lt; targetConnections; i++) {</span>
+                try {
+<span class="fc" id="L42">                    commands.get(&quot;_warmup_&quot; + i); // Lightweight GET (key doesn't exist)</span>
+<span class="fc" id="L43">                    warmedConnections++;</span>
+<span class="nc" id="L44">                } catch (Exception e) {</span>
+<span class="nc" id="L45">                    LOG.warnf(&quot;Failed to warm connection %d: %s&quot;, i, e.getMessage());</span>
+<span class="fc" id="L46">                }</span>
+            }
+
+<span class="fc" id="L49">            long duration = System.currentTimeMillis() - startTime;</span>
+<span class="fc" id="L50">            LOG.infof(&quot;Redis connection pool warmed: %d/%d connections in %dms&quot;, </span>
+<span class="fc" id="L51">                     warmedConnections, targetConnections, duration);</span>
+
+<span class="nc" id="L53">        } catch (Exception e) {</span>
+<span class="nc" id="L54">            LOG.errorf(e, &quot;Failed to warm up Redis connection pool&quot;);</span>
+<span class="fc" id="L55">        }</span>
+<span class="fc" id="L56">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

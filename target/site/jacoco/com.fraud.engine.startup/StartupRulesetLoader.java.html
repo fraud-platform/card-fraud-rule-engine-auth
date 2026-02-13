@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StartupRulesetLoader.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.startup</a> &gt; <span class="el_source">StartupRulesetLoader.java</span></div><h1>StartupRulesetLoader.java</h1><pre class="source lang-java linenums">package com.fraud.engine.startup;
+
+import com.fraud.engine.domain.Ruleset;
+import com.fraud.engine.ruleset.RulesetRegistry;
+import com.fraud.engine.util.EngineMetrics;
+import io.quarkus.runtime.StartupEvent;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
+import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
+
+import java.util.List;
+
+/**
+ * Startup bean that pre-loads rulesets into the registry at application startup.
+ * &lt;p&gt;
+ * This ensures rulesets are available in memory before the application accepts
+ * traffic, eliminating S3 I/O from the hot path and achieving 10-20ms latency.
+ * &lt;p&gt;
+ * &lt;b&gt;Fail-Fast Behavior:&lt;/b&gt; If startup loading is enabled and any ruleset fails
+ * to load, the application will fail to start. This prevents running with degraded
+ * fraud detection capabilities.
+ */
+@ApplicationScoped
+<span class="fc" id="L26">public class StartupRulesetLoader {</span>
+
+<span class="fc" id="L28">    private static final Logger LOG = Logger.getLogger(StartupRulesetLoader.class);</span>
+
+    @Inject
+    RulesetRegistry rulesetRegistry;
+
+    @Inject
+    EngineMetrics engineMetrics;
+
+    @ConfigProperty(name = &quot;app.ruleset.startup.load-enabled&quot;, defaultValue = &quot;true&quot;)
+    boolean startupLoadEnabled;
+
+    @ConfigProperty(name = &quot;app.ruleset.startup.rulesets&quot;, defaultValue = &quot;CARD_AUTH,CARD_MONITORING&quot;)
+    List&lt;String&gt; startupRulesets;
+
+    @ConfigProperty(name = &quot;app.ruleset.startup.fail-fast&quot;, defaultValue = &quot;true&quot;)
+    boolean failFast;
+
+    @ConfigProperty(name = &quot;app.ruleset.startup.environment&quot;, defaultValue = &quot;local&quot;)
+    String environment;
+
+    @ConfigProperty(name = &quot;app.ruleset.startup.country&quot;, defaultValue = &quot;US&quot;)
+    String country;
+
+    /**
+     * Loads rulesets at application startup.
+     * &lt;p&gt;
+     * This method is called after the application has started but before
+     * it accepts traffic. It loads the configured rulesets from S3/MinIO
+     * into the in-memory registry.
+     *
+     * @param event the startup event
+     */
+    void onStart(@Observes StartupEvent event) {
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        if (!startupLoadEnabled) {</span>
+<span class="fc" id="L62">            LOG.info(&quot;Startup ruleset loading is disabled&quot;);</span>
+<span class="fc" id="L63">            return;</span>
+        }
+
+<span class="fc" id="L66">        LOG.info(&quot;Beginning startup ruleset loading...&quot;);</span>
+<span class="fc" id="L67">        long loadStart = System.currentTimeMillis();</span>
+
+<span class="fc" id="L69">        int successCount = 0;</span>
+<span class="fc" id="L70">        int failCount = 0;</span>
+
+<span class="fc bfc" id="L72" title="All 2 branches covered.">        for (String rulesetKey : startupRulesets) {</span>
+            try {
+<span class="fc" id="L74">                LOG.infof(&quot;Loading ruleset at startup: country=%s, key=%s&quot;, country, rulesetKey);</span>
+
+                // Load latest version via manifest with country-partitioned path support
+<span class="fc" id="L77">                Ruleset compiled =</span>
+<span class="fc" id="L78">                        rulesetRegistry.getOrLoadLatest(country, rulesetKey);</span>
+
+<span class="fc bfc" id="L80" title="All 2 branches covered.">                if (compiled == null) {</span>
+<span class="fc" id="L81">                    String error = String.format(&quot;Failed to load ruleset: %s (not found in S3/MinIO)&quot;, rulesetKey);</span>
+<span class="fc" id="L82">                    LOG.error(error);</span>
+
+<span class="fc" id="L84">                    engineMetrics.incrementStartupRulesetFailure();</span>
+<span class="fc bfc" id="L85" title="All 2 branches covered.">                    if (failFast) {</span>
+<span class="fc" id="L86">                        throw new IllegalStateException(&quot;Startup ruleset loading failed: &quot; + error);</span>
+                    }
+<span class="fc" id="L88">                    failCount++;</span>
+<span class="fc" id="L89">                    continue;</span>
+                }
+
+<span class="fc" id="L92">                successCount++;</span>
+<span class="fc" id="L93">                LOG.infof(&quot;Successfully loaded ruleset: %s v%d&quot;, rulesetKey, compiled.getVersion());</span>
+
+<span class="fc" id="L95">            } catch (Exception e) {</span>
+<span class="fc" id="L96">                LOG.errorf(e, &quot;Error loading ruleset at startup: %s&quot;, rulesetKey);</span>
+<span class="fc" id="L97">                engineMetrics.incrementStartupRulesetFailure();</span>
+
+<span class="fc bfc" id="L99" title="All 2 branches covered.">                if (failFast) {</span>
+<span class="fc" id="L100">                    throw new IllegalStateException(&quot;Startup ruleset loading failed for: &quot; + rulesetKey, e);</span>
+                }
+<span class="fc" id="L102">                failCount++;</span>
+<span class="fc" id="L103">            }</span>
+<span class="fc" id="L104">        }</span>
+
+<span class="fc" id="L106">        engineMetrics.recordStartupLoadTime(System.currentTimeMillis() - loadStart);</span>
+
+<span class="pc bpc" id="L108" title="1 of 2 branches missed.">        if (successCount &gt; 0) {</span>
+<span class="fc" id="L109">            LOG.infof(&quot;Startup ruleset loading complete: %d loaded, %d failed&quot;, successCount, failCount);</span>
+<span class="fc" id="L110">            LOG.infof(&quot;Total rulesets in registry: %d&quot;, rulesetRegistry.size());</span>
+        }
+
+<span class="pc bpc" id="L113" title="1 of 4 branches missed.">        if (failCount &gt; 0 &amp;&amp; failFast) {</span>
+<span class="nc" id="L114">            throw new IllegalStateException(&quot;Startup ruleset loading had failures&quot;);</span>
+        }
+<span class="fc" id="L116">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

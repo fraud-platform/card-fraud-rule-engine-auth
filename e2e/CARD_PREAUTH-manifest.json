@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "environment": "local",
+  "ruleset_key": "CARD_AUTH",
+  "ruleset_version": 1,
+  "field_registry_version": 1,
+  "artifact_uri": "s3://fraud-gov-artifacts/rulesets/local/CARD_AUTH/v1/ruleset.json",
+  "checksum": "",
+  "published_at": "2026-01-28T12:00:00Z"
+}

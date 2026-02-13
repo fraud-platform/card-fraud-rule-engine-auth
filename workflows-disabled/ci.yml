@@ -1,0 +1,395 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  JAVA_VERSION: '21'
+  MAVEN_OPTS: '-Xmx1024m'
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:8.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build with Maven
+        run: mvn -B clean compile -DskipTests
+
+      - name: Run unit tests
+        run: mvn -B test -Dquarkus.redis.hosts=redis://localhost:6379
+        env:
+          QUARKUS_REDIS_HOSTS: redis://localhost:6379
+
+      - name: Run smoke tests
+        run: mvn -B test -Psmoke -Dquarkus.redis.hosts=redis://localhost:6379
+        env:
+          QUARKUS_REDIS_HOSTS: redis://localhost:6379
+
+      - name: Generate test report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Maven Tests
+          path: target/surefire-reports/*.xml
+          reporter: java-junit
+
+      - name: Upload coverage to Codecov
+        if: success()
+        uses: codecov/codecov-action@v4
+        with:
+          file: target/site/jacoco/jacoco.xml
+          fail_ci_if_error: false
+
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run SpotBugs
+        run: mvn -B spotbugs:check
+        continue-on-error: true
+
+      - name: Check code formatting
+        run: |
+          # Add checkstyle or formatter check here if configured
+          echo "Code formatting check placeholder"
+
+      - name: Secret scanning
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  coverage:
+    name: Test Coverage (80% Minimum)
+    runs-on: ubuntu-latest
+    needs: build
+    continue-on-error: true  # Don't fail PRs until we reach 80%
+
+    services:
+      redis:
+        image: redis:8.4-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run tests with coverage
+        run: mvn -B clean test -Pcoverage-enforce -Dquarkus.redis.hosts=redis://localhost:6379
+        env:
+          QUARKUS_REDIS_HOSTS: redis://localhost:6379
+
+      - name: Generate coverage report
+        run: |
+          echo "Coverage report generated"
+          cat target/site/jacoco/index.html | grep -o 'Total[^%]*%' | head -1 || echo "Coverage report not found"
+
+      - name: Comment PR with coverage
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let coverage = 'Unknown';
+            try {
+              const report = fs.readFileSync('target/site/jacoco/index.html', 'utf8');
+              const match = report.match(/Total[^%]*([0-9]+)%/);
+              if (match) {
+                coverage = match[1] + '%';
+              }
+            } catch (e) {
+              console.log('Could not read coverage report');
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `📊 Test Coverage: **${coverage}** (Target: 80%)`
+            });
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: OWASP Dependency Check
+        run: mvn -B dependency-check:check
+        continue-on-error: true
+
+      - name: Upload dependency check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: target/dependency-check-report.html
+          if-no-files-found: ignore
+
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    needs: [build, code-quality]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Package application
+        run: mvn -B package -DskipTests
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quarkus-app
+          path: target/quarkus-app/
+          retention-days: 7
+
+  docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: package
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download JAR artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: quarkus-app
+          path: target/quarkus-app/
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/main/docker/Dockerfile.jvm
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'pull_request'
+
+    services:
+      redis:
+        image: redis:8.4-alpine
+        ports:
+          - 6379:6379
+      minio:
+        image: minio/minio:latest
+        ports:
+          - 9000:9000
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run integration tests
+        run: mvn -B verify -Pintegration-tests
+        env:
+          QUARKUS_REDIS_HOSTS: redis://localhost:6379
+          S3_ENDPOINT_URL: http://localhost:9000
+          S3_ACCESS_KEY_ID: minioadmin
+          S3_SECRET_ACCESS_KEY: minioadmin
+        # Removed continue-on-error - integration tests should now pass
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'pull_request'
+    # Only run if Auth0 secrets are available
+    permissions:
+      contents: read
+
+    services:
+      redis:
+        image: redis:8.4-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r e2e/requirements.txt
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Start engine with Doppler secrets
+        run: |
+          # Start Redis (service already running)
+          # Build and start the engine
+          mvn -B package -DskipTests
+          #
+          # Note: This requires AUTH0_* secrets to be configured in GitHub Actions
+          # Secrets needed: AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, AUTH0_AUDIENCE
+          #
+          if [ -z "$AUTH0_DOMAIN" ]; then
+            echo "Auth0 secrets not configured - skipping E2E tests"
+            echo "To enable E2E tests, add the following secrets to GitHub:"
+            echo "  AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, AUTH0_AUDIENCE"
+            exit 0  # Skip gracefully
+          fi
+
+          # Start the engine in background with secrets
+          export REDIS_URL="redis://localhost:6379"
+          export KAFKA_BOOTSTRAP_SERVERS="localhost:9092"  # Mock, won't be used
+          export QUARKUS_HTTP_PORT=8081
+
+          # Start Quarkus in background
+          java -jar target/quarkus-app/quarkus-run.jar &
+          ENGINE_PID=$!
+
+          # Wait for engine to be ready
+          echo "Waiting for engine to start..."
+          for i in {1..60}; do
+            if curl -s http://localhost:8081/health/ready > /dev/null 2>&1; then
+              echo "Engine is ready!"
+              break
+            fi
+            sleep 2
+          done
+
+          # Run E2E tests
+          export FRAUD_ENGINE_BASE_URL="http://localhost:8081"
+          export AUTH0_DOMAIN="$AUTH0_DOMAIN"
+          export AUTH0_CLIENT_ID="$AUTH0_CLIENT_ID"
+          export AUTH0_CLIENT_SECRET="$AUTH0_CLIENT_SECRET"
+          export AUTH0_AUDIENCE="$AUTH0_AUDIENCE"
+
+          python -m pytest e2e/ -v --tb=short
+
+          # Cleanup
+          kill $ENGINE_PID 2>/dev/null || true
+        env:
+          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
+          AUTH0_AUDIENCE: ${{ secrets.AUTH0_AUDIENCE }}

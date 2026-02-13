@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "ruleset_key": "CARD_AUTH",
+  "ruleset_version": 1,
+  "execution_mode": "FIRST_MATCH",
+  "generated_at": "2026-01-28T12:00:00Z",
+  "ruleset_id": "local-AUTH-v1",
+  "rules": [
+    {
+      "rule_id": "always-approve",
+      "rule_version": 1,
+      "enabled": true,
+      "priority": 1,
+      "condition": {
+        "op": "exists",
+        "field": "transaction_id"
+      },
+      "action": {
+        "decision": "APPROVE"
+      }
+    },
+    {
+      "rule_id": "card-1h-velocity",
+      "rule_version": 1,
+      "enabled": true,
+      "priority": 50,
+      "condition": {
+        "op": "exists",
+        "field": "transaction_id"
+      },
+      "velocity": {
+        "dimension": "card_hash",
+        "window_seconds": 3600,
+        "threshold": 20,
+        "action": "DECLINE"
+      },
+      "action": {
+        "decision": "APPROVE"
+      }
+    },
+    {
+      "rule_id": "card-5min-velocity",
+      "rule_version": 1,
+      "enabled": true,
+      "priority": 100,
+      "condition": {
+        "op": "exists",
+        "field": "transaction_id"
+      },
+      "velocity": {
+        "dimension": "card_hash",
+        "window_seconds": 300,
+        "threshold": 10,
+        "action": "DECLINE"
+      },
+      "action": {
+        "decision": "APPROVE"
+      }
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/AUTH-response.json",
+  "title": "AUTHResponse",
+  "type": "object",
+  "required": ["transaction_id", "ruleset_key", "decision", "trace_id", "latency_ms"],
+  "properties": {
+    "transaction_id": { "type": "string", "minLength": 1 },
+    "ruleset_key": { "const": "CARD_AUTH" },
+    "ruleset_version": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Null only when no ruleset was loaded/evaluated (fail-open before load)."
+    },
+    "decision": { "type": "string", "enum": ["APPROVE", "DECLINE"] },
+    "matched_rule": {
+      "type": "object",
+      "required": ["rule_id", "rule_version", "reason_code"],
+      "properties": {
+        "rule_id": { "type": "string", "minLength": 1 },
+        "rule_version": { "type": "integer", "minimum": 1 },
+        "reason_code": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "trace_id": { "type": "string", "minLength": 1 },
+    "latency_ms": { "type": "number", "minimum": 0 },
+    "engine_mode": { "type": "string", "enum": ["NORMAL", "DEGRADED", "FAIL_OPEN"] },
+    "engine_error_code": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": { "engine_mode": { "const": "NORMAL" } },
+        "required": ["engine_mode"]
+      },
+      "then": {
+        "not": { "required": ["engine_error_code"] }
+      }
+    }
+  ]
+}

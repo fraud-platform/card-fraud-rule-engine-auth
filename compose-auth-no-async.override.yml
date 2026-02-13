@@ -1,0 +1,6 @@
+services:
+  rule-engine:
+    environment:
+      - AUTH_ASYNC_DURABILITY_ENABLED=false
+      - OUTBOX_AUTH_PUBLISHER_ENABLED=false
+      - JAVA_JFR_OPTS=

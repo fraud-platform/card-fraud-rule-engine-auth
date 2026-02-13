@@ -1,0 +1,320 @@
+openapi: 3.0.3
+info:
+  title: Card Fraud Rule Engine API (AUTH)
+  version: "1.0.0"
+  description: |
+    Stateless runtime decision engine for AUTH card fraud evaluation (split from card-fraud-rule-engine on 2026-02-13).
+
+    ## Features
+    - **AUTH evaluation**: First-match semantics with fail-open default
+    - **Hot reload**: Atomic ruleset version swapping without downtime
+    - **Replay mode**: Test transactions without side effects
+    - **Simulation**: Ad-hoc ruleset testing with inline YAML
+
+    ## Authentication
+    Authentication and authorization are handled at the API Gateway layer.
+    The rule engine trusts gateway-forwarded traffic and does not validate tokens directly.
+
+servers:
+  - url: http://localhost:8081
+    description: Local development
+
+paths:
+  /v1/evaluate/auth:
+    post:
+      summary: AUTH evaluation
+      description: |
+        Evaluates a transaction using AUTH ruleset.
+
+        **Semantics**: First-match - stops at first DECLINE rule, otherwise APPROVE.
+        **Fail-open**: Returns APPROVE if ruleset not loaded or on error.
+        **Side effects**: Publishes to Kafka, increments Redis velocity counters.
+      operationId: evaluateAuth
+      tags: [Evaluation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionContext'
+            examples:
+              approve:
+                summary: Simple approval
+                value:
+                  transaction_id: "txn-001"
+                  card_hash: "abc123def456"
+                  amount: 50.00
+                  currency: "USD"
+                  merchant_category_code: "5411"
+                  country_code: "US"
+                  transaction_type: "PURCHASE"
+      responses:
+        "200":
+          description: Evaluation successful (always HTTP 200)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Decision'
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/evaluate/health:
+    get:
+      summary: Health check
+      description: Check if the evaluation service is healthy
+      operationId: health
+      tags: [Health]
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /v1/evaluate/rulesets/registry/status:
+    get:
+      summary: Get registry status
+      description: Get information about loaded rulesets
+      operationId: getRegistryStatus
+      tags: [Ruleset Management]
+      responses:
+        "200":
+          description: Registry status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistryStatus'
+
+  /v1/evaluate/rulesets/registry/{country}:
+    get:
+      summary: Get rulesets by country
+      description: Get all ruleset keys for a country
+      operationId: getCountryRulesets
+      tags: [Ruleset Management]
+      parameters:
+        - name: country
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of ruleset keys
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CountryRulesets'
+
+  /v1/evaluate/rulesets/hotswap:
+    post:
+      summary: Hot swap ruleset
+      description: Atomically replace a ruleset with a new version
+      operationId: hotSwapRuleset
+      tags: [Ruleset Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HotSwapRequest'
+      responses:
+        "200":
+          description: Hot swap completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotSwapResponse'
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/evaluate/rulesets/load:
+    post:
+      summary: Load ruleset
+      description: Load and register a ruleset into the registry
+      operationId: loadRuleset
+      tags: [Ruleset Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoadRulesetRequest'
+      responses:
+        "200":
+          description: Ruleset loaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoadRulesetResponse'
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Ruleset not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/evaluate/rulesets/bulk-load:
+    post:
+      summary: Bulk load rulesets
+      description: Load multiple rulesets into the registry
+      operationId: bulkLoadRulesets
+      tags: [Ruleset Management]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkLoadRequest'
+      responses:
+        "200":
+          description: Bulk load completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkLoadResponse'
+
+components:
+  schemas:
+    TransactionContext:
+      type: object
+      properties:
+        transaction_id:
+          type: string
+        card_hash:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        merchant_category_code:
+          type: string
+        country_code:
+          type: string
+        transaction_type:
+          type: string
+
+    Decision:
+      type: object
+      properties:
+        transaction_id:
+          type: string
+        decision:
+          type: string
+          enum: [APPROVE, DECLINE]
+        ruleset_key:
+          type: string
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        storageAccessible:
+          type: boolean
+
+    RegistryStatus:
+      type: object
+      properties:
+        totalRulesets:
+          type: integer
+        countries:
+          type: integer
+        storageAccessible:
+          type: boolean
+
+    CountryRulesets:
+      type: object
+      properties:
+        country:
+          type: string
+        rulesetKeys:
+          type: array
+          items:
+            type: string
+
+    HotSwapRequest:
+      type: object
+      properties:
+        key:
+          type: string
+        version:
+          type: integer
+        country:
+          type: string
+
+    HotSwapResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        status:
+          type: string
+        message:
+          type: string
+        oldVersion:
+          type: integer
+        newVersion:
+          type: integer
+
+    LoadRulesetRequest:
+      type: object
+      properties:
+        key:
+          type: string
+        version:
+          type: integer
+        country:
+          type: string
+
+    LoadRulesetResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        rulesetKey:
+          type: string
+        version:
+          type: integer
+        country:
+          type: string
+
+    BulkLoadRequest:
+      type: object
+      properties:
+        rulesets:
+          type: array
+          items:
+            type: object
+
+    BulkLoadResponse:
+      type: object
+      properties:
+        loaded:
+          type: integer
+        total:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        error_code:
+          type: string
+        message:
+          type: string

@@ -1,0 +1,534 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Condition.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Card Fraud Rule Engine</a> &gt; <a href="index.source.html" class="el_package">com.fraud.engine.domain</a> &gt; <span class="el_source">Condition.java</span></div><h1>Condition.java</h1><pre class="source lang-java linenums">package com.fraud.engine.domain;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+import java.util.Map;
+import java.util.Objects;
+
+/**
+ * Represents a condition that can be evaluated against a transaction.
+ *
+ * &lt;p&gt;Conditions compare a transaction field against a value using an operator.
+ * Example: amount &gt; 100, card_hash = 'abc123', merchant_category IN ('01', '02')
+ *
+ * &lt;p&gt;Phase 5 Optimization: Operator is normalized to an enum at deserialization time,
+ * eliminating string allocations and comparisons during evaluation.
+ */
+public class Condition {
+
+    @NotBlank(message = &quot;Field is required&quot;)
+    @JsonProperty(&quot;field&quot;)
+    private String field;
+
+    @JsonProperty(&quot;operator&quot;)
+    private String operatorRaw; // Raw value for JSON deserialization
+
+    private Operator operator; // Normalized enum - used for evaluation
+
+    @NotNull(message = &quot;Value is required&quot;)
+    @JsonProperty(&quot;value&quot;)
+    private Object value;
+
+    @JsonProperty(&quot;values&quot;)
+    private Object values;
+
+<span class="fc" id="L39">    public Condition() {</span>
+<span class="fc" id="L40">    }</span>
+
+<span class="fc" id="L42">    public Condition(String field, String operator, Object value) {</span>
+<span class="fc" id="L43">        this.field = field;</span>
+<span class="fc" id="L44">        setOperator(operator);</span>
+<span class="fc" id="L45">        this.value = value;</span>
+<span class="fc" id="L46">    }</span>
+
+<span class="fc" id="L48">    public Condition(String field, Operator operator, Object value) {</span>
+<span class="fc" id="L49">        this.field = field;</span>
+<span class="pc bpc" id="L50" title="1 of 2 branches missed.">        this.operator = operator != null ? operator : Operator.EQ;</span>
+<span class="fc" id="L51">        this.operatorRaw = this.operator.name().toLowerCase();</span>
+<span class="fc" id="L52">        this.value = value;</span>
+<span class="fc" id="L53">    }</span>
+
+    public String getField() {
+<span class="fc" id="L56">        return field;</span>
+    }
+
+    public void setField(String field) {
+<span class="fc" id="L60">        this.field = field;</span>
+<span class="fc" id="L61">    }</span>
+
+    /**
+     * Gets the normalized operator enum.
+     * @return the operator enum
+     */
+    public Operator getOperatorEnum() {
+<span class="fc" id="L68">        return operator;</span>
+    }
+
+    /**
+     * Sets the operator using the normalized enum.
+     * @param operator the operator enum
+     */
+    public void setOperatorEnum(Operator operator) {
+<span class="pc bpc" id="L76" title="1 of 2 branches missed.">        this.operator = operator != null ? operator : Operator.EQ;</span>
+<span class="fc" id="L77">        this.operatorRaw = this.operator.name().toLowerCase();</span>
+<span class="fc" id="L78">    }</span>
+
+    /**
+     * Sets the operator from a string value.
+     * Normalizes to enum at deserialization time (Phase 5 optimization).
+     * @param operator the operator string (e.g., &quot;gt&quot;, &quot;&gt;&quot;, &quot;equals&quot;)
+     */
+    @JsonProperty(&quot;operator&quot;)
+    public void setOperator(String operator) {
+<span class="fc" id="L87">        this.operatorRaw = operator;</span>
+<span class="fc" id="L88">        this.operator = Operator.fromString(operator);</span>
+<span class="fc" id="L89">    }</span>
+
+    public Object getValue() {
+<span class="fc" id="L92">        return value;</span>
+    }
+
+    public void setValue(Object value) {
+<span class="fc" id="L96">        this.value = value;</span>
+<span class="fc" id="L97">    }</span>
+
+    public Object getValues() {
+<span class="fc" id="L100">        return values;</span>
+    }
+
+    public void setValues(Object values) {
+<span class="fc" id="L104">        this.values = values;</span>
+<span class="fc" id="L105">    }</span>
+
+    @Override
+    public boolean equals(Object o) {
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        if (this == o) return true;</span>
+<span class="nc bnc" id="L110" title="All 4 branches missed.">        if (o == null || getClass() != o.getClass()) return false;</span>
+<span class="nc" id="L111">        Condition condition = (Condition) o;</span>
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        return Objects.equals(field, condition.field) &amp;&amp;</span>
+<span class="nc bnc" id="L113" title="All 2 branches missed.">               Objects.equals(operator, condition.operator) &amp;&amp;</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">               Objects.equals(value, condition.value);</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L119">        return Objects.hash(field, operator, value);</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="nc" id="L124">        return &quot;Condition{&quot; +</span>
+               &quot;field='&quot; + field + '\'' +
+               &quot;, operator='&quot; + operator + '\'' +
+               &quot;, value=&quot; + value +
+               '}';
+    }
+
+    /**
+     * Returns a human-readable string representation of this condition.
+     * Example outputs: &quot;amount &gt; 5000&quot;, &quot;country IN (US, CA, UK)&quot;
+     *
+     * @return a formatted string representation
+     */
+    public String toHumanReadable() {
+<span class="fc" id="L138">        return ConditionFormatter.toHumanReadable(this);</span>
+    }
+
+    /**
+     * Evaluates this condition against a transaction context.
+     *
+     * @param context the transaction context containing field values
+     * @return true if the condition is satisfied, false otherwise
+     */
+    public boolean evaluate(Map&lt;String, Object&gt; context) {
+<span class="fc bfc" id="L148" title="All 2 branches covered.">        if (context == null) {</span>
+<span class="fc" id="L149">            return false;</span>
+        }
+<span class="fc bfc" id="L151" title="All 2 branches covered.">        if (operator == Operator.EXISTS) {</span>
+<span class="fc bfc" id="L152" title="All 4 branches covered.">            return context.containsKey(field) &amp;&amp; context.get(field) != null;</span>
+        }
+<span class="fc bfc" id="L154" title="All 2 branches covered.">        if (!context.containsKey(field)) {</span>
+<span class="fc" id="L155">            return false;</span>
+        }
+
+<span class="fc" id="L158">        Object contextValue = context.get(field);</span>
+<span class="fc" id="L159">        return evaluateValue(contextValue);</span>
+    }
+
+    /**
+     * Evaluates this condition against an already-fetched field value.
+     * &lt;p&gt;
+     * This is an optimization for scenarios where the value has already been
+     * retrieved from the context, avoiding redundant map lookups.
+     *
+     * @param actualValue the actual value from the transaction context
+     * @return true if the condition is satisfied, false otherwise
+     */
+    public boolean evaluateValue(Object actualValue) {
+<span class="pc bpc" id="L172" title="1 of 2 branches missed.">        if (operator == Operator.EXISTS) {</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">            return actualValue != null;</span>
+        }
+<span class="fc" id="L175">        return evaluateComparison(actualValue);</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    private boolean evaluateComparison(Object contextValue) {
+        // Phase 5: Use enum switch (faster than string comparison)
+<span class="pc bpc" id="L181" title="1 of 2 branches missed.">        if (operator == null) {</span>
+<span class="nc" id="L182">            return false;</span>
+        }
+
+<span class="pc bpc" id="L185" title="1 of 14 branches missed.">        return switch (operator) {</span>
+<span class="fc" id="L186">            case EQ -&gt; isEqual(contextValue, value);</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">            case NE -&gt; !isEqual(contextValue, value);</span>
+<span class="fc bfc" id="L188" title="All 2 branches covered.">            case GT -&gt; compareNumeric(contextValue, value) &gt; 0;</span>
+<span class="fc bfc" id="L189" title="All 2 branches covered.">            case GTE -&gt; compareNumeric(contextValue, value) &gt;= 0;</span>
+<span class="fc bfc" id="L190" title="All 2 branches covered.">            case LT -&gt; compareNumeric(contextValue, value) &lt; 0;</span>
+<span class="fc bfc" id="L191" title="All 2 branches covered.">            case LTE -&gt; compareNumeric(contextValue, value) &lt;= 0;</span>
+<span class="fc" id="L192">            case IN -&gt; isInList(contextValue);</span>
+<span class="fc bfc" id="L193" title="All 2 branches covered.">            case NOT_IN -&gt; !isInList(contextValue);</span>
+<span class="fc" id="L194">            case BETWEEN -&gt; isBetween(contextValue);</span>
+<span class="fc" id="L195">            case CONTAINS -&gt; containsValue(contextValue);</span>
+<span class="fc" id="L196">            case STARTS_WITH -&gt; startsWithValue(contextValue);</span>
+<span class="fc" id="L197">            case ENDS_WITH -&gt; endsWithValue(contextValue);</span>
+<span class="fc" id="L198">            case REGEX -&gt; matchesRegex(contextValue);</span>
+<span class="nc bnc" id="L199" title="All 2 branches missed.">            case EXISTS -&gt; contextValue != null;</span>
+        };
+    }
+
+    private boolean isEqual(Object contextValue, Object targetValue) {
+<span class="pc bpc" id="L204" title="1 of 4 branches missed.">        if (contextValue == null &amp;&amp; targetValue == null) {</span>
+<span class="nc" id="L205">            return true;</span>
+        }
+<span class="pc bpc" id="L207" title="1 of 4 branches missed.">        if (contextValue == null || targetValue == null) {</span>
+<span class="fc" id="L208">            return false;</span>
+        }
+<span class="fc bfc" id="L210" title="All 2 branches covered.">        if (Objects.equals(contextValue, targetValue)) {</span>
+<span class="fc" id="L211">            return true;</span>
+        }
+<span class="pc bpc" id="L213" title="1 of 4 branches missed.">        if (isNumeric(contextValue) &amp;&amp; isNumeric(targetValue)) {</span>
+<span class="fc bfc" id="L214" title="All 2 branches covered.">            return compareNumeric(contextValue, targetValue) == 0;</span>
+        }
+<span class="fc" id="L216">        return false;</span>
+    }
+
+    private boolean isNumeric(Object value) {
+<span class="fc bfc" id="L220" title="All 2 branches covered.">        if (value instanceof Number) {</span>
+<span class="fc" id="L221">            return true;</span>
+        }
+<span class="pc bpc" id="L223" title="1 of 2 branches missed.">        if (value instanceof String) {</span>
+            try {
+<span class="fc" id="L225">                Double.parseDouble((String) value);</span>
+<span class="fc" id="L226">                return true;</span>
+<span class="fc" id="L227">            } catch (NumberFormatException e) {</span>
+<span class="fc" id="L228">                return false;</span>
+            }
+        }
+<span class="nc" id="L231">        return false;</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    private boolean isInList(Object contextValue) {
+<span class="fc bfc" id="L236" title="All 4 branches covered.">        if (values == null &amp;&amp; value == null) {</span>
+<span class="fc" id="L237">            return false;</span>
+        }
+<span class="fc" id="L239">        java.util.List&lt;?&gt; list = null;</span>
+<span class="fc bfc" id="L240" title="All 2 branches covered.">        if (values instanceof java.util.List&lt;?&gt; valuesList) {</span>
+<span class="fc" id="L241">            list = valuesList;</span>
+<span class="pc bpc" id="L242" title="1 of 2 branches missed.">        } else if (value instanceof java.util.List&lt;?&gt; valueList) {</span>
+<span class="nc" id="L243">            list = valueList;</span>
+<span class="fc bfc" id="L244" title="All 2 branches covered.">        } else if (value != null) {</span>
+<span class="fc" id="L245">            list = java.util.List.of(value);</span>
+        }
+<span class="fc bfc" id="L247" title="All 2 branches covered.">        if (list == null) {</span>
+<span class="fc" id="L248">            return false;</span>
+        }
+<span class="fc" id="L250">        return list.stream()</span>
+<span class="fc" id="L251">                .anyMatch(item -&gt; Objects.equals(contextValue, item));</span>
+    }
+
+    private boolean isBetween(Object contextValue) {
+<span class="pc bpc" id="L255" title="1 of 2 branches missed.">        if (contextValue == null) {</span>
+<span class="nc" id="L256">            return false;</span>
+        }
+<span class="fc bfc" id="L258" title="All 2 branches covered.">        Object rangeSource = values != null ? values : value;</span>
+<span class="fc bfc" id="L259" title="All 4 branches covered.">        if (!(rangeSource instanceof java.util.List&lt;?&gt; list) || list.size() &lt; 2) {</span>
+<span class="fc" id="L260">            return false;</span>
+        }
+<span class="fc" id="L262">        Object lower = list.get(0);</span>
+<span class="fc" id="L263">        Object upper = list.get(1);</span>
+<span class="pc bpc" id="L264" title="3 of 6 branches missed.">        if (!isNumeric(contextValue) || !isNumeric(lower) || !isNumeric(upper)) {</span>
+<span class="nc" id="L265">            return false;</span>
+        }
+<span class="fc" id="L267">        double actual = toDouble(contextValue);</span>
+<span class="fc" id="L268">        double min = toDouble(lower);</span>
+<span class="fc" id="L269">        double max = toDouble(upper);</span>
+<span class="fc bfc" id="L270" title="All 4 branches covered.">        return actual &gt;= Math.min(min, max) &amp;&amp; actual &lt;= Math.max(min, max);</span>
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    private boolean containsValue(Object contextValue) {
+<span class="fc bfc" id="L275" title="All 4 branches covered.">        if (contextValue == null || value == null) {</span>
+<span class="fc" id="L276">            return false;</span>
+        }
+<span class="fc bfc" id="L278" title="All 2 branches covered.">        if (contextValue instanceof java.util.List&lt;?&gt; list) {</span>
+<span class="fc" id="L279">            return list.stream().anyMatch(item -&gt; Objects.equals(item, value));</span>
+        }
+<span class="pc bpc" id="L281" title="1 of 2 branches missed.">        if (contextValue instanceof String stringValue) {</span>
+<span class="fc" id="L282">            return stringValue.contains(String.valueOf(value));</span>
+        }
+<span class="nc" id="L284">        return false;</span>
+    }
+
+    private boolean startsWithValue(Object contextValue) {
+<span class="pc bpc" id="L288" title="1 of 4 branches missed.">        if (contextValue instanceof String stringValue &amp;&amp; value != null) {</span>
+<span class="fc" id="L289">            return stringValue.startsWith(String.valueOf(value));</span>
+        }
+<span class="fc" id="L291">        return false;</span>
+    }
+
+    private boolean endsWithValue(Object contextValue) {
+<span class="pc bpc" id="L295" title="1 of 4 branches missed.">        if (contextValue instanceof String stringValue &amp;&amp; value != null) {</span>
+<span class="fc" id="L296">            return stringValue.endsWith(String.valueOf(value));</span>
+        }
+<span class="fc" id="L298">        return false;</span>
+    }
+
+    private boolean matchesRegex(Object contextValue) {
+<span class="pc bpc" id="L302" title="1 of 4 branches missed.">        if (contextValue instanceof String stringValue &amp;&amp; value != null) {</span>
+            try {
+<span class="fc" id="L304">                return stringValue.matches(String.valueOf(value));</span>
+<span class="fc" id="L305">            } catch (Exception e) {</span>
+<span class="fc" id="L306">                return false;</span>
+            }
+        }
+<span class="fc" id="L309">        return false;</span>
+    }
+
+    private int compareNumeric(Object contextValue, Object targetValue) {
+<span class="pc bpc" id="L313" title="2 of 4 branches missed.">        if (contextValue == null || targetValue == null) {</span>
+<span class="nc" id="L314">            return 0;</span>
+        }
+
+<span class="fc" id="L317">        double contextNum = toDouble(contextValue);</span>
+<span class="fc" id="L318">        double targetNum = toDouble(targetValue);</span>
+
+<span class="fc" id="L320">        return Double.compare(contextNum, targetNum);</span>
+    }
+
+    private double toDouble(Object value) {
+<span class="fc bfc" id="L324" title="All 2 branches covered.">        if (value instanceof Number number) {</span>
+<span class="fc" id="L325">            return number.doubleValue();</span>
+        }
+        try {
+<span class="fc" id="L328">            return Double.parseDouble(String.valueOf(value));</span>
+<span class="nc" id="L329">        } catch (NumberFormatException e) {</span>
+<span class="nc" id="L330">            return 0.0;</span>
+        }
+    }
+
+    // ========== Inner Classes ==========
+
+    /**
+     * Normalized operator enum for condition evaluation.
+     * &lt;p&gt;
+     * Phase 5 Optimization: Using enum instead of string eliminates
+     * repeated string allocations and comparisons during evaluation.
+     * &lt;p&gt;
+     * Operators are normalized at deserialization time from various string formats:
+     * &lt;ul&gt;
+     *   &lt;li&gt;GT: &quot;gt&quot;, &quot;&gt;&quot;&lt;/li&gt;
+     *   &lt;li&gt;GTE: &quot;gte&quot;, &quot;&gt;=&quot;&lt;/li&gt;
+     *   &lt;li&gt;LT: &quot;lt&quot;, &quot;&lt;&quot;&lt;/li&gt;
+     *   &lt;li&gt;LTE: &quot;lte&quot;, &quot;&lt;=&quot;&lt;/li&gt;
+     *   &lt;li&gt;EQ: &quot;eq&quot;, &quot;equals&quot;, &quot;=&quot;&lt;/li&gt;
+     *   &lt;li&gt;NE: &quot;ne&quot;, &quot;not_equals&quot;, &quot;!=&quot;&lt;/li&gt;
+     *   &lt;li&gt;IN: &quot;in&quot;&lt;/li&gt;
+     *   &lt;li&gt;NOT_IN: &quot;not_in&quot;&lt;/li&gt;
+     *   &lt;li&gt;CONTAINS: &quot;contains&quot;&lt;/li&gt;
+     *   &lt;li&gt;STARTS_WITH: &quot;starts_with&quot;&lt;/li&gt;
+     *   &lt;li&gt;ENDS_WITH: &quot;ends_with&quot;&lt;/li&gt;
+     *   &lt;li&gt;REGEX: &quot;regex&quot;, &quot;matches&quot;&lt;/li&gt;
+     *   &lt;li&gt;EXISTS: &quot;exists&quot;&lt;/li&gt;
+     *   &lt;li&gt;BETWEEN: &quot;between&quot;&lt;/li&gt;
+     * &lt;/ul&gt;
+     */
+<span class="fc" id="L360">    public enum Operator {</span>
+
+        /**
+         * Greater than - checks if the field value is greater than the expected value.
+         */
+<span class="fc" id="L365">        GT,</span>
+
+        /**
+         * Greater than or equal - checks if the field value is greater than or equal to the expected value.
+         */
+<span class="fc" id="L370">        GTE,</span>
+
+        /**
+         * Less than - checks if the field value is less than the expected value.
+         */
+<span class="fc" id="L375">        LT,</span>
+
+        /**
+         * Less than or equal - checks if the field value is less than or equal to the expected value.
+         */
+<span class="fc" id="L380">        LTE,</span>
+
+        /**
+         * Equal - checks if the field value equals the expected value.
+         */
+<span class="fc" id="L385">        EQ,</span>
+
+        /**
+         * Not equal - checks if the field value does not equal the expected value.
+         */
+<span class="fc" id="L390">        NE,</span>
+
+        /**
+         * In list - checks if the field value is in the list of expected values.
+         */
+<span class="fc" id="L395">        IN,</span>
+
+        /**
+         * Not in list - checks if the field value is not in the list of expected values.
+         */
+<span class="fc" id="L400">        NOT_IN,</span>
+
+        /**
+         * Between - checks if the field value is within a range (inclusive).
+         */
+<span class="fc" id="L405">        BETWEEN,</span>
+
+        /**
+         * Contains - checks if the field value contains the expected substring.
+         */
+<span class="fc" id="L410">        CONTAINS,</span>
+
+        /**
+         * Starts with - checks if the field value starts with the expected prefix.
+         */
+<span class="fc" id="L415">        STARTS_WITH,</span>
+
+        /**
+         * Ends with - checks if the field value ends with the expected suffix.
+         */
+<span class="fc" id="L420">        ENDS_WITH,</span>
+
+        /**
+         * Regex - checks if the field value matches the regular expression pattern.
+         */
+<span class="fc" id="L425">        REGEX,</span>
+
+        /**
+         * Exists - checks if the field is present and non-null.
+         */
+<span class="fc" id="L430">        EXISTS;</span>
+
+        /**
+         * Parses a string value into an Operator enum.
+         * &lt;p&gt;
+         * Supports multiple aliases for each operator:
+         * &lt;ul&gt;
+         *   &lt;li&gt;GT: &quot;gt&quot;, &quot;&gt;&quot;&lt;/li&gt;
+         *   &lt;li&gt;GTE: &quot;gte&quot;, &quot;&gt;=&quot;&lt;/li&gt;
+         *   &lt;li&gt;LT: &quot;lt&quot;, &quot;&lt;&quot;&lt;/li&gt;
+         *   &lt;li&gt;LTE: &quot;lte&quot;, &quot;&lt;=&quot;&lt;/li&gt;
+         *   &lt;li&gt;EQ: &quot;eq&quot;, &quot;equals&quot;, &quot;=&quot;&lt;/li&gt;
+         *   &lt;li&gt;NE: &quot;ne&quot;, &quot;not_equals&quot;, &quot;!=&quot;&lt;/li&gt;
+         *   &lt;li&gt;IN: &quot;in&quot;&lt;/li&gt;
+         *   &lt;li&gt;NOT_IN: &quot;not_in&quot;&lt;/li&gt;
+         *   &lt;li&gt;BETWEEN: &quot;between&quot;&lt;/li&gt;
+         *   &lt;li&gt;CONTAINS: &quot;contains&quot;&lt;/li&gt;
+         *   &lt;li&gt;STARTS_WITH: &quot;starts_with&quot;&lt;/li&gt;
+         *   &lt;li&gt;ENDS_WITH: &quot;ends_with&quot;&lt;/li&gt;
+         *   &lt;li&gt;REGEX: &quot;regex&quot;, &quot;matches&quot;&lt;/li&gt;
+         * &lt;/ul&gt;
+         *
+         * @param value the string value to parse
+         * @return the corresponding Operator enum, or EQ if invalid
+         */
+        @JsonCreator
+        public static Operator fromString(String value) {
+<span class="fc bfc" id="L457" title="All 4 branches covered.">            if (value == null || value.isBlank()) {</span>
+<span class="fc" id="L458">                return EQ; // Default to equals for null/blank</span>
+            }
+
+<span class="fc" id="L461">            String normalized = value.trim().toLowerCase();</span>
+
+<span class="fc bfc" id="L463" title="All 15 branches covered.">            return switch (normalized) {</span>
+<span class="fc" id="L464">                case &quot;gt&quot;, &quot;&gt;&quot; -&gt; GT;</span>
+<span class="fc" id="L465">                case &quot;gte&quot;, &quot;&gt;=&quot; -&gt; GTE;</span>
+<span class="fc" id="L466">                case &quot;lt&quot;, &quot;&lt;&quot; -&gt; LT;</span>
+<span class="fc" id="L467">                case &quot;lte&quot;, &quot;&lt;=&quot; -&gt; LTE;</span>
+<span class="fc" id="L468">                case &quot;eq&quot;, &quot;equals&quot;, &quot;=&quot; -&gt; EQ;</span>
+<span class="fc" id="L469">                case &quot;ne&quot;, &quot;not_equals&quot;, &quot;!=&quot; -&gt; NE;</span>
+<span class="fc" id="L470">                case &quot;in&quot; -&gt; IN;</span>
+<span class="fc" id="L471">                case &quot;not_in&quot; -&gt; NOT_IN;</span>
+<span class="fc" id="L472">                case &quot;between&quot; -&gt; BETWEEN;</span>
+<span class="fc" id="L473">                case &quot;contains&quot; -&gt; CONTAINS;</span>
+<span class="fc" id="L474">                case &quot;starts_with&quot; -&gt; STARTS_WITH;</span>
+<span class="fc" id="L475">                case &quot;ends_with&quot; -&gt; ENDS_WITH;</span>
+<span class="fc" id="L476">                case &quot;regex&quot;, &quot;matches&quot; -&gt; REGEX;</span>
+<span class="fc" id="L477">                case &quot;exists&quot; -&gt; EXISTS;</span>
+                default -&gt; {
+                    // Unknown operator - default to equals but log warning in production
+                    // For now, return EQ as safe default
+<span class="fc" id="L481">                    yield EQ;</span>
+                }
+            };
+        }
+
+        /**
+         * Returns the JSON string representation of this operator.
+         * Used by Jackson during serialization.
+         *
+         * @return the lowercase string representation
+         */
+        @JsonValue
+        public String toValue() {
+<span class="fc" id="L494">            return name().toLowerCase();</span>
+        }
+
+        /**
+         * Checks if this is a comparison operator (GT, GTE, LT, LTE).
+         *
+         * @return true if this is a comparison operator
+         */
+        public boolean isComparison() {
+<span class="pc bpc" id="L503" title="1 of 10 branches missed.">            return this == GT || this == GTE || this == LT || this == LTE || this == BETWEEN;</span>
+        }
+
+        /**
+         * Checks if this is an equality operator (EQ, NE).
+         *
+         * @return true if this is an equality operator
+         */
+        public boolean isEquality() {
+<span class="fc bfc" id="L512" title="All 4 branches covered.">            return this == EQ || this == NE;</span>
+        }
+
+        /**
+         * Checks if this is a collection operator (IN, NOT_IN).
+         *
+         * @return true if this is a collection operator
+         */
+        public boolean isCollection() {
+<span class="fc bfc" id="L521" title="All 4 branches covered.">            return this == IN || this == NOT_IN;</span>
+        }
+
+        /**
+         * Checks if this is a string operator (CONTAINS, STARTS_WITH, ENDS_WITH, REGEX).
+         *
+         * @return true if this is a string operator
+         */
+        public boolean isString() {
+<span class="fc bfc" id="L530" title="All 8 branches covered.">            return this == CONTAINS || this == STARTS_WITH || this == ENDS_WITH || this == REGEX;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.14.202510111229</span></div></body></html>

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/evaluate-request.json",
+  "title": "EvaluateRequest",
+  "type": "object",
+  "required": ["transaction_id", "occurred_at"],
+  "properties": {
+    "transaction_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "minLength": 1,
+      "description": "RFC 3339 / ISO 8601 timestamp in UTC (e.g., 2026-01-15T10:45:30Z)."
+    }
+  },
+  "additionalProperties": true
+}
