@@ -1,0 +1,226 @@
+﻿# =============================================================================
+# Card Fraud Rule Engine - .gitignore
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Java / Maven Build Artifacts
+# -----------------------------------------------------------------------------
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+!.mvn/wrapper/maven-wrapper.jar
+
+# -----------------------------------------------------------------------------
+# Python Virtual Environment & Cache
+# -----------------------------------------------------------------------------
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+
+# Python tooling cache
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# uv lock (generated, not source)
+# uv.lock
+
+# -----------------------------------------------------------------------------
+# IDE & Editor Files
+# -----------------------------------------------------------------------------
+
+# Eclipse
+.classpath
+.factorypath
+.project
+.settings/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# VS Code
+.vscode/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# NetBeans
+nb-private/
+nbproject/private/
+
+# -----------------------------------------------------------------------------
+# AI Agent / Coding Assistant Session Data
+# -----------------------------------------------------------------------------
+.claude/
+.codex/
+.cursor/
+.aider*
+.copilot/
+
+# -----------------------------------------------------------------------------
+# OS Generated Files
+# -----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+nul
+NUL
+
+# -----------------------------------------------------------------------------
+# Logs & Runtime Output
+# -----------------------------------------------------------------------------
+*.log
+app.err
+prod.log
+
+# Test / latency output
+latency_results_*.json
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+*.pid
+
+# Maven wrapper download
+.mvn/wrapper/maven-wrapper.jar
+
+# -----------------------------------------------------------------------------
+# Secrets & Environment Files (Doppler is the ONLY secrets source)
+# -----------------------------------------------------------------------------
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+*.pem
+*.key
+*.jks
+*.p12
+*.pfx
+*.keystore
+credentials.json
+service-account*.json
+
+# Doppler tokens (should never exist as files)
+.doppler.yaml
+
+# Doppler runtime files
+doppler-engine.pid
+doppler-engine.log
+
+# -----------------------------------------------------------------------------
+# Docker
+# -----------------------------------------------------------------------------
+docker-compose.override.yml
+
+# -----------------------------------------------------------------------------
+# Quarkus
+# -----------------------------------------------------------------------------
+quarkus-app/
+.quarkus/
+
+# -----------------------------------------------------------------------------
+# JMH Benchmark Output
+# -----------------------------------------------------------------------------
+jmh-result*.json
+*.jfr
+*.hprof
+*.heapdump
+*.jstack
+*.jmap
+flight-*.jfr
+jfr-*.jfr
+
+# -----------------------------------------------------------------------------
+# Coverage Reports (generated, not source)
+# -----------------------------------------------------------------------------
+jacoco.exec
+
+# Docs publication gate (curated sections only)
+docs/*
+!docs/README.md
+!docs/codemap.md
+!docs/01-setup/
+!docs/01-setup/*
+!docs/02-development/
+!docs/02-development/*
+!docs/03-api/
+!docs/03-api/*
+!docs/04-testing/
+!docs/04-testing/*
+!docs/05-deployment/
+!docs/05-deployment/*
+!docs/06-operations/
+!docs/06-operations/*
+!docs/07-reference/
+!docs/07-reference/*
+
+# Never publish archived/temporary planning docs
+docs/archive/
+docs/**/archive/
+docs/**/*todo*.md
+docs/**/*status*.md
+
+# Local-only agent/session files
+CLAUDE.md
+claude.md
+STATUS.md
+status.md
+SESSION_HANDOFF.md
+
+# -----------------------------------------------------------------------------
+# Performance profiling raw artifacts (keep curated summaries, ignore raw dumps)
+# -----------------------------------------------------------------------------
+# Root ad-hoc analysis scratch files
+AUTH-ONLY-ANALYSIS-*.md
+JFR-ANALYSIS-*.md
+CURRENT-STATUS.md
+bulk-load-request.json
+run-summary-*.json
+
+# Raw JFR captures and extracted text dumps
+docs/04-testing/*.jfr
+docs/04-testing/flight-*.txt
+docs/04-testing/tmp-*.txt
+docs/04-testing/*-alloc.txt
+docs/04-testing/*-exec.txt
+docs/04-testing/*-locks.txt
+docs/04-testing/*-gc.txt
+docs/04-testing/*-gc-pause.txt
+docs/04-testing/*-young-gc.txt
+flight-*.txt
+tmp-*.txt
+*-alloc.txt
+*-exec.txt
+*-locks.txt
+*-gc.txt
+*-gc-pause.txt
+*-young-gc.txt
+
+# Session notes / transient handoff notes (non-canonical)
+docs/04-testing/session-*.md
+docs/04-testing/NEXT-SESSION-*.md
+docs/04-testing/JFR-ANALYSIS-*.md
+docs/04-testing/PROFILING-RESULTS-*.md
+
