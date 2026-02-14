@@ -227,4 +227,14 @@ doppler run --config local -- \
 - `quarkus.log.level: WARN` - Suppress hot-path logging
 - `app.outbox.redis-timeout-seconds: 5` - Bounded Redis timeouts
 
+For split-service end-to-end load testing via Docker (recommended for AUTH+MONITORING flow), use:
+
+```bash
+cd ../card-fraud-platform
+doppler run -- uv run platform-up -- --apps
+
+cd ../card-fraud-e2e-load-testing
+uv run lt-rule-engine --users=50 --spawn-rate=10 --run-time=2m --scenario baseline --headless
+```
 Last updated: 2026-02-13
+
