@@ -1,0 +1,5236 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Card Fraud Transaction Management API",
+    "description": "API for ingesting fraud decision events and querying transaction data. Uses PostgreSQL with the fraud_gov schema (shared with card-fraud-rule-management).",
+    "version": "0.1.0",
+    "x-generated-at": "2026-01-27T14:36:52.080092+00:00"
+  },
+  "paths": {
+    "/health/": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health check",
+        "description": "Check if the service is running.",
+        "operationId": "health_check_health__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Readiness check",
+        "description": "Check if the service is ready to receive traffic.",
+        "operationId": "readiness_check_health_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/live": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Liveness check",
+        "description": "Kubernetes liveness probe endpoint.",
+        "operationId": "liveness_check_health_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Liveness Check Health Live Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/decision-events": {
+      "post": {
+        "tags": [
+          "Ingestion"
+        ],
+        "summary": "Ingest decision event",
+        "description": "Ingest a fraud decision event (HTTP endpoint for dev/testing).",
+        "operationId": "ingest_decision_event_api_v1_decision_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionEventCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Event accepted for processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionEventResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "409": {
+            "description": "Conflicting transaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "PAN detected (PCI violation)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/transactions": {
+      "get": {
+        "tags": [
+          "Query"
+        ],
+        "summary": "List transactions",
+        "description": "Get a paginated list of transactions with optional filtering.",
+        "operationId": "list_transactions_api_v1_transactions_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Items per page",
+              "default": 50,
+              "title": "Page Size"
+            },
+            "description": "Items per page"
+          },
+          {
+            "name": "card_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by card ID",
+              "title": "Card Id"
+            },
+            "description": "Filter by card ID"
+          },
+          {
+            "name": "decision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by decision (APPROVE/DECLINE)",
+              "title": "Decision"
+            },
+            "description": "Filter by decision (APPROVE/DECLINE)"
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by country code (not persisted)",
+              "title": "Country"
+            },
+            "description": "Filter by country code (not persisted)"
+          },
+          {
+            "name": "merchant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by merchant ID",
+              "title": "Merchant Id"
+            },
+            "description": "Filter by merchant ID"
+          },
+          {
+            "name": "from_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter from date",
+              "title": "From Date"
+            },
+            "description": "Filter from date"
+          },
+          {
+            "name": "to_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to date",
+              "title": "To Date"
+            },
+            "description": "Filter to date"
+          },
+          {
+            "name": "review_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by review status (PENDING/IN_REVIEW/ESCALATED/RESOLVED/CLOSED)",
+              "title": "Review Status"
+            },
+            "description": "Filter by review status (PENDING/IN_REVIEW/ESCALATED/RESOLVED/CLOSED)"
+          },
+          {
+            "name": "risk_level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by risk level (LOW/MEDIUM/HIGH/CRITICAL)",
+              "title": "Risk Level"
+            },
+            "description": "Filter by risk level (LOW/MEDIUM/HIGH/CRITICAL)"
+          },
+          {
+            "name": "case_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by case ID",
+              "title": "Case Id"
+            },
+            "description": "Filter by case ID"
+          },
+          {
+            "name": "rule_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by rule ID (matched rules)",
+              "title": "Rule Id"
+            },
+            "description": "Filter by rule ID (matched rules)"
+          },
+          {
+            "name": "ruleset_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by ruleset ID",
+              "title": "Ruleset Id"
+            },
+            "description": "Filter by ruleset ID"
+          },
+          {
+            "name": "assigned_to_me",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Filter transactions assigned to current user",
+              "default": false,
+              "title": "Assigned To Me"
+            },
+            "description": "Filter transactions assigned to current user"
+          },
+          {
+            "name": "min_amount",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Minimum transaction amount",
+              "title": "Min Amount"
+            },
+            "description": "Minimum transaction amount"
+          },
+          {
+            "name": "max_amount",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Maximum transaction amount",
+              "title": "Max Amount"
+            },
+            "description": "Maximum transaction amount"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pagination cursor from previous response",
+              "title": "Cursor"
+            },
+            "description": "Pagination cursor from previous response"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of transactions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction_id}": {
+      "get": {
+        "tags": [
+          "Query"
+        ],
+        "summary": "Get transaction",
+        "description": "Get detailed information about a specific transaction.",
+        "operationId": "get_transaction_api_v1_transactions__transaction_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Transaction Id"
+            }
+          },
+          {
+            "name": "include_rules",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include rule matches",
+              "default": true,
+              "title": "Include Rules"
+            },
+            "description": "Include rule matches"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionQueryResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Transaction not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/combined": {
+      "get": {
+        "tags": [
+          "Query"
+        ],
+        "summary": "Get combined transaction view",
+        "description": "Get AUTH and MONITORING events (and matches) for a transaction_id.",
+        "operationId": "get_transaction_combined_api_v1_transactions__transaction_id__combined_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Transaction Id"
+            }
+          },
+          {
+            "name": "include_rules",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include rule matches",
+              "default": true,
+              "title": "Include Rules"
+            },
+            "description": "Include rule matches"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Combined transaction view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CombinedTransactionView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Transaction not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/overview": {
+      "get": {
+        "tags": [
+          "Query"
+        ],
+        "summary": "Get transaction overview",
+        "description": "Get combined view with transaction, review, notes, case, and optional matched rules.",
+        "operationId": "get_transaction_overview_api_v1_transactions__transaction_id__overview_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Transaction Id"
+            }
+          },
+          {
+            "name": "include_rules",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include matched rules",
+              "default": false,
+              "title": "Include Rules"
+            },
+            "description": "Include matched rules"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction overview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionOverview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "404": {
+            "description": "Transaction not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/metrics": {
+      "get": {
+        "tags": [
+          "Query"
+        ],
+        "summary": "Get metrics",
+        "description": "Get aggregate transaction metrics.",
+        "operationId": "get_metrics_api_v1_metrics_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter from date",
+              "title": "From Date"
+            },
+            "description": "Filter from date"
+          },
+          {
+            "name": "to_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to date",
+              "title": "To Date"
+            },
+            "description": "Filter to date"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction metrics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Metrics Api V1 Metrics Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient permissions"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/review": {
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Get Review",
+        "description": "Get or create review for a transaction.",
+        "operationId": "get_review_api_v1_transactions__transaction_id__review_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Create Review",
+        "description": "Create a new review for a transaction (if not exists).",
+        "operationId": "create_review_api_v1_transactions__transaction_id__review_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/review/status": {
+      "patch": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Update Review Status",
+        "description": "Update transaction review status.\n\nValid status transitions:\n- PENDING \u2192 IN_REVIEW, ESCALATED, RESOLVED, CLOSED\n- IN_REVIEW \u2192 PENDING, ESCALATED, RESOLVED, CLOSED\n- ESCALATED \u2192 IN_REVIEW, RESOLVED, CLOSED\n- RESOLVED \u2192 CLOSED\n- CLOSED \u2192 (none)",
+        "operationId": "update_review_status_api_v1_transactions__transaction_id__review_status_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatusUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/review/assign": {
+      "patch": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Assign Review",
+        "description": "Assign a transaction review to an analyst.",
+        "operationId": "assign_review_api_v1_transactions__transaction_id__review_assign_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/review/resolve": {
+      "post": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Resolve Review",
+        "description": "Resolve a transaction review.",
+        "operationId": "resolve_review_api_v1_transactions__transaction_id__review_resolve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/review/escalate": {
+      "post": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Escalate Review",
+        "description": "Escalate a transaction review to a supervisor.",
+        "operationId": "escalate_review_api_v1_transactions__transaction_id__review_escalate_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EscalateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/notes": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "List Notes",
+        "description": "List notes for a transaction.\n\nPrivate notes are only returned to their author or supervisors.",
+        "operationId": "list_notes_api_v1_transactions__transaction_id__notes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Create Note",
+        "description": "Create a new note on a transaction.",
+        "operationId": "create_note_api_v1_transactions__transaction_id__notes_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{transaction_id}/notes/{note_id}": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Get Note",
+        "description": "Get a specific note.",
+        "operationId": "get_note_api_v1_transactions__transaction_id__notes__note_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          },
+          {
+            "name": "note_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Note Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Update Note",
+        "description": "Update a note.\n\nOnly the note author can update their own notes.\nSystem-generated notes cannot be edited.",
+        "operationId": "update_note_api_v1_transactions__transaction_id__notes__note_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          },
+          {
+            "name": "note_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Note Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Delete Note",
+        "description": "Delete a note.\n\nOnly the note author or a supervisor can delete notes.\nSystem-generated notes cannot be deleted.",
+        "operationId": "delete_note_api_v1_transactions__transaction_id__notes__note_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          },
+          {
+            "name": "note_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Note Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases": {
+      "get": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "List Cases",
+        "description": "List cases with optional filters.\n\n- Use `assigned_to_me=true` to only show cases assigned to current analyst",
+        "operationId": "list_cases_api_v1_cases_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Case Status"
+            }
+          },
+          {
+            "name": "case_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Case Type"
+            }
+          },
+          {
+            "name": "assigned_to_me",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Assigned To Me"
+            }
+          },
+          {
+            "name": "risk_level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Risk Level"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Create Case",
+        "description": "Create a new case from transactions.\n\nTransactions are linked to the case via their review records.",
+        "operationId": "create_case_api_v1_cases_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaseCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/{case_id}": {
+      "get": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Get Case",
+        "description": "Get a case by ID.",
+        "operationId": "get_case_api_v1_cases__case_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Update Case",
+        "description": "Update a case.\n\nTo resolve/close a case, include resolution_summary.",
+        "operationId": "update_case_api_v1_cases__case_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaseUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/number/{case_number}": {
+      "get": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Get Case By Number",
+        "description": "Get a case by its case number.",
+        "operationId": "get_case_by_number_api_v1_cases_number__case_number__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/{case_id}/transactions": {
+      "get": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Get Case Transactions",
+        "description": "Get all transactions associated with a case.",
+        "operationId": "get_case_transactions_api_v1_cases__case_id__transactions_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Get Case Transactions Api V1 Cases  Case Id  Transactions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Add Transaction To Case",
+        "description": "Add a transaction to a case.",
+        "operationId": "add_transaction_to_case_api_v1_cases__case_id__transactions_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaseTransactionLink"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/{case_id}/transactions/{transaction_id}": {
+      "delete": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Remove Transaction From Case",
+        "description": "Remove a transaction from a case.",
+        "operationId": "remove_transaction_from_case_api_v1_cases__case_id__transactions__transaction_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/{case_id}/activity": {
+      "get": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Get Case Activity",
+        "description": "Get activity log for a case.",
+        "operationId": "get_case_activity_api_v1_cases__case_id__activity_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CaseActivityResponse"
+                  },
+                  "title": "Response Get Case Activity Api V1 Cases  Case Id  Activity Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/{case_id}/resolve": {
+      "post": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Resolve Case",
+        "description": "Resolve a case.",
+        "operationId": "resolve_case_api_v1_cases__case_id__resolve_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "resolution_summary",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Summary of how the case was resolved",
+              "title": "Resolution Summary"
+            },
+            "description": "Summary of how the case was resolved"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/worklist": {
+      "get": {
+        "tags": [
+          "worklist"
+        ],
+        "summary": "Get Worklist",
+        "description": "Get worklist for the current analyst.\n\n- Use `assigned_only=true` to get only items assigned to you\n- Use `status` to filter by review status (PENDING, IN_REVIEW, ESCALATED, etc.)\n- Use `priority_filter` to only show high-priority items (1=highest, 5=lowest)\n- Use `risk_level_filter` to only show items at a specific risk level",
+        "operationId": "get_worklist_api_v1_worklist_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "assigned_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Assigned Only"
+            }
+          },
+          {
+            "name": "priority_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 5,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only show items at or below this priority (1=highest)",
+              "title": "Priority Filter"
+            },
+            "description": "Only show items at or below this priority (1=highest)"
+          },
+          {
+            "name": "risk_level_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only show items at this risk level (LOW|MEDIUM|HIGH|CRITICAL)",
+              "title": "Risk Level Filter"
+            },
+            "description": "Only show items at this risk level (LOW|MEDIUM|HIGH|CRITICAL)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorklistResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/worklist/stats": {
+      "get": {
+        "tags": [
+          "worklist"
+        ],
+        "summary": "Get Worklist Stats",
+        "description": "Get worklist statistics.\n\nReturns unassigned counts and current analyst's assigned counts.",
+        "operationId": "get_worklist_stats_api_v1_worklist_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorklistStats"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/worklist/unassigned": {
+      "get": {
+        "tags": [
+          "worklist"
+        ],
+        "summary": "Get Unassigned",
+        "description": "Get unassigned transactions available for claim.\n\n- Use `priority_filter` to only show high-priority items (1=highest, 5=lowest)\n- Use `risk_level_filter` to only show items at or above this risk level",
+        "operationId": "get_unassigned_api_v1_worklist_unassigned_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "priority_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 5,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only show items at or below this priority (1=highest)",
+              "title": "Priority Filter"
+            },
+            "description": "Only show items at or below this priority (1=highest)"
+          },
+          {
+            "name": "risk_level_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Risk Level Filter"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorklistResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/worklist/claim": {
+      "post": {
+        "tags": [
+          "worklist"
+        ],
+        "summary": "Claim Next",
+        "description": "Claim the next unassigned transaction.\n\nAutomatically assigns the highest-priority unassigned transaction\n(matching any filters) to the current analyst.\n\nReturns the claimed worklist item, or null if no items are available.",
+        "operationId": "claim_next_api_v1_worklist_claim_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorklistItem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/bulk/assign": {
+      "post": {
+        "tags": [
+          "bulk"
+        ],
+        "summary": "Bulk Assign",
+        "description": "Bulk assign transactions to an analyst.\n\nMaximum 100 transactions per request.",
+        "operationId": "bulk_assign_api_v1_bulk_assign_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkAssignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkOperationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/bulk/status": {
+      "post": {
+        "tags": [
+          "bulk"
+        ],
+        "summary": "Bulk Update Status",
+        "description": "Bulk update transaction review status.\n\nMaximum 100 transactions per request.",
+        "operationId": "bulk_update_status_api_v1_bulk_status_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkOperationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/bulk/create-case": {
+      "post": {
+        "tags": [
+          "bulk"
+        ],
+        "summary": "Bulk Create Case",
+        "description": "Bulk create a case from transactions.\n\nCreates a new case and adds all specified transactions to it.\nMaximum 100 transactions per request.\n\nReturns the created case ID and case number.",
+        "operationId": "bulk_create_case_api_v1_bulk_create_case_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkCreateCaseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkOperationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AssignRequest": {
+        "properties": {
+          "analyst_id": {
+            "type": "string",
+            "title": "Analyst Id",
+            "description": "ID of the analyst to assign to"
+          }
+        },
+        "type": "object",
+        "required": [
+          "analyst_id"
+        ],
+        "title": "AssignRequest",
+        "description": "Schema for assigning a transaction review to an analyst."
+      },
+      "BulkAssignRequest": {
+        "properties": {
+          "transaction_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Transaction Ids",
+            "description": "List of transaction IDs to assign (max 100 per request)"
+          },
+          "analyst_id": {
+            "type": "string",
+            "title": "Analyst Id",
+            "description": "Analyst ID to assign all transactions to"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_ids",
+          "analyst_id"
+        ],
+        "title": "BulkAssignRequest",
+        "description": "Schema for bulk assigning transactions to an analyst."
+      },
+      "BulkCreateCaseRequest": {
+        "properties": {
+          "transaction_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Transaction Ids",
+            "description": "List of transaction IDs to include in case (max 100 per request)"
+          },
+          "case_type": {
+            "type": "string",
+            "title": "Case Type",
+            "description": "Type of case (INVESTIGATION, DISPUTE, CHARGEBACK, etc.)"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Title",
+            "description": "Case title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Case description"
+          },
+          "assigned_analyst_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Analyst Id",
+            "description": "Analyst to assign case to"
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Level",
+            "description": "Initial risk level"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_ids",
+          "case_type",
+          "title"
+        ],
+        "title": "BulkCreateCaseRequest",
+        "description": "Schema for bulk creating a case from transactions."
+      },
+      "BulkOperationResponse": {
+        "properties": {
+          "total_requested": {
+            "type": "integer",
+            "title": "Total Requested",
+            "description": "Total items in request"
+          },
+          "successful": {
+            "type": "integer",
+            "title": "Successful",
+            "description": "Number of successful operations"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "description": "Number of failed operations"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/BulkOperationResult"
+            },
+            "type": "array",
+            "title": "Results",
+            "description": "Individual result for each transaction"
+          },
+          "created_case_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created Case Id",
+            "description": "ID of created case (if applicable)"
+          },
+          "created_case_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created Case Number",
+            "description": "Case number of created case (if applicable)"
+          },
+          "error_summary": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Summary",
+            "description": "Summary of errors by error code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_requested",
+          "successful",
+          "failed",
+          "results"
+        ],
+        "title": "BulkOperationResponse",
+        "description": "Response schema for bulk operations."
+      },
+      "BulkOperationResult": {
+        "properties": {
+          "transaction_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Transaction Id"
+          },
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_id",
+          "success"
+        ],
+        "title": "BulkOperationResult",
+        "description": "Result of a single bulk operation item."
+      },
+      "BulkStatusRequest": {
+        "properties": {
+          "transaction_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Transaction Ids",
+            "description": "List of transaction IDs to update (max 100 per request)"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TransactionStatus",
+            "description": "New status to set"
+          },
+          "resolution_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Code",
+            "description": "Resolution code (required for RESOLVED/CLOSED status)"
+          },
+          "resolution_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Notes",
+            "description": "Resolution notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_ids",
+          "status"
+        ],
+        "title": "BulkStatusRequest",
+        "description": "Schema for bulk updating transaction status."
+      },
+      "CardNetwork": {
+        "type": "string",
+        "enum": [
+          "VISA",
+          "MASTERCARD",
+          "AMEX",
+          "DISCOVER",
+          "OTHER"
+        ],
+        "title": "CardNetwork",
+        "description": "Card network/brand."
+      },
+      "CaseActivityResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "case_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Case Id"
+          },
+          "activity_type": {
+            "type": "string",
+            "title": "Activity Type"
+          },
+          "activity_description": {
+            "type": "string",
+            "title": "Activity Description"
+          },
+          "analyst_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analyst Id"
+          },
+          "analyst_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analyst Name"
+          },
+          "old_values": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Values"
+          },
+          "new_values": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Values"
+          },
+          "transaction_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transaction Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "case_id",
+          "activity_type",
+          "activity_description",
+          "created_at"
+        ],
+        "title": "CaseActivityResponse",
+        "description": "Response schema for case activity log entry."
+      },
+      "CaseCreate": {
+        "properties": {
+          "case_type": {
+            "$ref": "#/components/schemas/CaseType",
+            "description": "Type of case"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Title",
+            "description": "Case title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Case description"
+          },
+          "transaction_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Transaction Ids",
+            "description": "Transaction IDs to add to the case"
+          },
+          "assigned_analyst_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Analyst Id",
+            "description": "Analyst to assign the case to"
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RiskLevel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Initial risk level assessment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "case_type",
+          "title"
+        ],
+        "title": "CaseCreate",
+        "description": "Schema for creating a case."
+      },
+      "CaseListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CaseResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page_size",
+          "has_more"
+        ],
+        "title": "CaseListResponse",
+        "description": "Response schema for listing cases."
+      },
+      "CaseResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "case_number": {
+            "type": "string",
+            "title": "Case Number"
+          },
+          "case_type": {
+            "$ref": "#/components/schemas/CaseType"
+          },
+          "case_status": {
+            "$ref": "#/components/schemas/CaseStatus"
+          },
+          "assigned_analyst_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Analyst Id"
+          },
+          "assigned_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned At"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "total_transaction_count": {
+            "type": "integer",
+            "title": "Total Transaction Count"
+          },
+          "total_transaction_amount": {
+            "type": "number",
+            "title": "Total Transaction Amount"
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RiskLevel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "resolved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved By"
+          },
+          "resolution_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Summary"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "case_number",
+          "case_type",
+          "case_status",
+          "title",
+          "total_transaction_count",
+          "total_transaction_amount",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CaseResponse",
+        "description": "Response schema for case."
+      },
+      "CaseStatus": {
+        "type": "string",
+        "enum": [
+          "OPEN",
+          "IN_PROGRESS",
+          "PENDING_INFO",
+          "RESOLVED",
+          "CLOSED"
+        ],
+        "title": "CaseStatus",
+        "description": "Status of case workflow."
+      },
+      "CaseTransactionLink": {
+        "properties": {
+          "transaction_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Transaction Id",
+            "description": "Transaction to add/remove from case"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_id"
+        ],
+        "title": "CaseTransactionLink",
+        "description": "Schema for linking a transaction to a case."
+      },
+      "CaseType": {
+        "type": "string",
+        "enum": [
+          "INVESTIGATION",
+          "DISPUTE",
+          "CHARGEBACK",
+          "FRAUD_RING",
+          "ACCOUNT_TAKEOVER",
+          "PATTERN_ANALYSIS",
+          "MERCHANT_REVIEW",
+          "CARD_COMPROMISE",
+          "OTHER"
+        ],
+        "title": "CaseType",
+        "description": "Type of case for grouping related transactions."
+      },
+      "CaseUpdate": {
+        "properties": {
+          "case_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New case status"
+          },
+          "case_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Updated case type"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "Updated title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Updated description"
+          },
+          "assigned_analyst_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Analyst Id",
+            "description": "Reassign to different analyst"
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RiskLevel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Updated risk level"
+          },
+          "resolution_summary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Summary",
+            "description": "Resolution summary (required when closing/resolving)"
+          }
+        },
+        "type": "object",
+        "title": "CaseUpdate",
+        "description": "Schema for updating a case."
+      },
+      "ClaimRequest": {
+        "properties": {
+          "priority_filter": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 5.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority Filter",
+            "description": "Only claim transactions at or below this priority (lower = higher priority)"
+          },
+          "risk_level_filter": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RiskLevel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only claim transactions at this risk level or higher"
+          }
+        },
+        "type": "object",
+        "title": "ClaimRequest",
+        "description": "Schema for claiming the next unassigned transaction."
+      },
+      "CombinedTransactionView": {
+        "properties": {
+          "transaction_id": {
+            "type": "string",
+            "title": "Transaction Id"
+          },
+          "AUTH": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransactionQueryResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "MONITORING": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransactionQueryResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_id"
+        ],
+        "title": "CombinedTransactionView",
+        "description": "Combined AUTH + MONITORING view for a transaction_id."
+      },
+      "DecisionEventCreate": {
+        "properties": {
+          "event_version": {
+            "type": "string",
+            "title": "Event Version",
+            "description": "Event schema version",
+            "default": "1.0"
+          },
+          "transaction_id": {
+            "type": "string",
+            "title": "Transaction Id",
+            "description": "Business transaction ID (idempotency key)"
+          },
+          "evaluation_type": {
+            "$ref": "#/components/schemas/EvaluationType",
+            "description": "Evaluation type: AUTH or MONITORING"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At",
+            "description": "When the transaction occurred"
+          },
+          "produced_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Produced At",
+            "description": "When the decision was produced"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionDetails"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/DecisionType"
+          },
+          "decision_reason": {
+            "$ref": "#/components/schemas/DecisionReason"
+          },
+          "matched_rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleMatch"
+            },
+            "type": "array",
+            "title": "Matched Rules"
+          },
+          "ruleset_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ruleset Key",
+            "description": "Ruleset key for identification"
+          },
+          "ruleset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ruleset Id",
+            "description": "Ruleset UUID"
+          },
+          "ruleset_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ruleset Version",
+            "description": "Ruleset version number"
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RiskLevel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Risk level classification"
+          },
+          "transaction_context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transaction Context",
+            "description": "Full payload from rule engine with all evaluation context"
+          },
+          "velocity_snapshot": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Velocity Snapshot",
+            "description": "All velocity states at decision time"
+          },
+          "velocity_results": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Velocity Results",
+            "description": "Per-rule velocity calculation results for matched rules"
+          },
+          "engine_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine Metadata",
+            "description": "Engine mode, processing time, errors, and runtime metadata"
+          },
+          "raw_payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Payload",
+            "description": "Allowlist of original fields (PCI-safe)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_id",
+          "evaluation_type",
+          "occurred_at",
+          "produced_at",
+          "transaction",
+          "decision",
+          "decision_reason"
+        ],
+        "title": "DecisionEventCreate",
+        "description": "Decision event for ingestion (HTTP POST body)."
+      },
+      "DecisionEventResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "accepted"
+          },
+          "transaction_id": {
+            "type": "string",
+            "title": "Transaction Id"
+          },
+          "ingestion_source": {
+            "$ref": "#/components/schemas/IngestionSource"
+          },
+          "ingested_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ingested At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_id",
+          "ingestion_source",
+          "ingested_at"
+        ],
+        "title": "DecisionEventResponse",
+        "description": "Response after event ingestion."
+      },
+      "DecisionReason": {
+        "type": "string",
+        "enum": [
+          "RULE_MATCH",
+          "VELOCITY_MATCH",
+          "SYSTEM_DECLINE",
+          "DEFAULT_ALLOW",
+          "MANUAL_REVIEW"
+        ],
+        "title": "DecisionReason",
+        "description": "Reason for the decision outcome."
+      },
+      "DecisionType": {
+        "type": "string",
+        "enum": [
+          "APPROVE",
+          "DECLINE"
+        ],
+        "title": "DecisionType",
+        "description": "Transaction decision type (engine decision outcome only)."
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "type": "string",
+            "title": "Error"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "description": "Error response."
+      },
+      "EscalateRequest": {
+        "properties": {
+          "escalate_to": {
+            "type": "string",
+            "title": "Escalate To",
+            "description": "ID of the analyst/supervisor to escalate to"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "description": "Reason for escalation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "escalate_to",
+          "reason"
+        ],
+        "title": "EscalateRequest",
+        "description": "Schema for escalating a transaction review."
+      },
+      "EvaluationType": {
+        "type": "string",
+        "enum": [
+          "AUTH",
+          "MONITORING"
+        ],
+        "title": "EvaluationType",
+        "description": "Evaluation type: AUTH (real-time) or MONITORING (analytics-only)."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "version"
+        ],
+        "title": "HealthResponse",
+        "description": "Health check response."
+      },
+      "IngestionSource": {
+        "type": "string",
+        "enum": [
+          "HTTP",
+          "KAFKA"
+        ],
+        "title": "IngestionSource",
+        "description": "How the decision event was ingested."
+      },
+      "NoteCreate": {
+        "properties": {
+          "note_type": {
+            "$ref": "#/components/schemas/NoteType",
+            "description": "Type/classification of note",
+            "default": "GENERAL"
+          },
+          "note_content": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Note Content",
+            "description": "Note content"
+          },
+          "is_private": {
+            "type": "boolean",
+            "title": "Is Private",
+            "description": "Whether note is private (only visible to author and supervisors)",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "note_content"
+        ],
+        "title": "NoteCreate",
+        "description": "Schema for creating an analyst note."
+      },
+      "NoteListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NoteResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page_size",
+          "has_more"
+        ],
+        "title": "NoteListResponse",
+        "description": "Response schema for listing notes."
+      },
+      "NoteResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "transaction_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Transaction Id"
+          },
+          "note_type": {
+            "$ref": "#/components/schemas/NoteType"
+          },
+          "note_content": {
+            "type": "string",
+            "title": "Note Content"
+          },
+          "analyst_id": {
+            "type": "string",
+            "title": "Analyst Id"
+          },
+          "analyst_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analyst Name"
+          },
+          "analyst_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analyst Email"
+          },
+          "is_private": {
+            "type": "boolean",
+            "title": "Is Private"
+          },
+          "is_system_generated": {
+            "type": "boolean",
+            "title": "Is System Generated"
+          },
+          "case_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "transaction_id",
+          "note_type",
+          "note_content",
+          "analyst_id",
+          "is_private",
+          "is_system_generated",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "NoteResponse",
+        "description": "Response schema for analyst note."
+      },
+      "NoteType": {
+        "type": "string",
+        "enum": [
+          "GENERAL",
+          "INITIAL_REVIEW",
+          "CUSTOMER_CONTACT",
+          "MERCHANT_CONTACT",
+          "BANK_CONTACT",
+          "FRAUD_CONFIRMED",
+          "FALSE_POSITIVE",
+          "ESCALATION",
+          "RESOLUTION",
+          "LEGAL_HOLD",
+          "INTERNAL_REVIEW"
+        ],
+        "title": "NoteType",
+        "description": "Type of analyst note for classification."
+      },
+      "NoteUpdate": {
+        "properties": {
+          "note_content": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Note Content",
+            "description": "Updated note content"
+          },
+          "note_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NoteType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Updated note type"
+          },
+          "is_private": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Private",
+            "description": "Updated privacy setting"
+          }
+        },
+        "type": "object",
+        "required": [
+          "note_content"
+        ],
+        "title": "NoteUpdate",
+        "description": "Schema for updating an analyst note."
+      },
+      "ReadyResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "database": {
+            "type": "string",
+            "title": "Database"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "database"
+        ],
+        "title": "ReadyResponse",
+        "description": "Readiness check response."
+      },
+      "ResolveRequest": {
+        "properties": {
+          "resolution_code": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Resolution Code",
+            "description": "Standardized resolution code (e.g., FRAUD_CONFIRMED, FALSE_POSITIVE)"
+          },
+          "resolution_notes": {
+            "type": "string",
+            "title": "Resolution Notes",
+            "description": "Detailed notes explaining the resolution"
+          }
+        },
+        "type": "object",
+        "required": [
+          "resolution_code",
+          "resolution_notes"
+        ],
+        "title": "ResolveRequest",
+        "description": "Schema for resolving a transaction review."
+      },
+      "ReviewResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "transaction_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Transaction Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TransactionStatus"
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority"
+          },
+          "case_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "assigned_analyst_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Analyst Id"
+          },
+          "assigned_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "resolved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved By"
+          },
+          "resolution_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Code"
+          },
+          "resolution_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Notes"
+          },
+          "escalated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalated At"
+          },
+          "escalated_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalated To"
+          },
+          "escalation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalation Reason"
+          },
+          "first_reviewed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Reviewed At"
+          },
+          "last_activity_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Activity At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "transaction_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transaction Amount"
+          },
+          "transaction_currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transaction Currency"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Level"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "transaction_id",
+          "status",
+          "priority",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ReviewResponse",
+        "description": "Response schema for transaction review."
+      },
+      "RiskLevel": {
+        "type": "string",
+        "enum": [
+          "LOW",
+          "MEDIUM",
+          "HIGH",
+          "CRITICAL"
+        ],
+        "title": "RiskLevel",
+        "description": "Risk level classification."
+      },
+      "RuleAction": {
+        "type": "string",
+        "enum": [
+          "APPROVE",
+          "DECLINE",
+          "REVIEW"
+        ],
+        "title": "RuleAction",
+        "description": "Action determined by a matched rule."
+      },
+      "RuleMatch": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "rule_version_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Version Id",
+            "description": "UUID of the rule version"
+          },
+          "rule_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Version",
+            "description": "Rule version number (optional)"
+          },
+          "rule_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Name"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "matched_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched At"
+          },
+          "rule_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Type"
+          },
+          "match_reason_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Reason Text"
+          },
+          "rule_action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RuleAction"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Action determined by the rule"
+          },
+          "conditions_met": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conditions Met",
+            "description": "Descriptions of conditions that matched"
+          },
+          "condition_values": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition Values",
+            "description": "Actual values evaluated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id"
+        ],
+        "title": "RuleMatch",
+        "description": "A rule that matched during fraud evaluation."
+      },
+      "StatusUpdateRequest": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/TransactionStatus",
+            "description": "New status (must follow valid state transitions)"
+          },
+          "resolution_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Notes",
+            "description": "Required when status is RESOLVED or CLOSED"
+          },
+          "resolution_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Code",
+            "description": "Standardized resolution code (e.g., FRAUD_CONFIRMED, FALSE_POSITIVE)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "StatusUpdateRequest",
+        "description": "Schema for updating transaction review status."
+      },
+      "TransactionDetails": {
+        "properties": {
+          "card_id": {
+            "type": "string",
+            "title": "Card Id",
+            "description": "Tokenized card identifier (never raw PAN)"
+          },
+          "card_last4": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Last4",
+            "description": "Last 4 digits (only in TOKEN_PLUS_LAST4 mode)"
+          },
+          "card_network": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Amount",
+            "description": "Transaction amount"
+          },
+          "currency": {
+            "type": "string",
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "Currency",
+            "description": "ISO 4217 currency code"
+          },
+          "country": {
+            "type": "string",
+            "maxLength": 2,
+            "minLength": 2,
+            "title": "Country",
+            "description": "ISO 3166-1 alpha-2 country code"
+          },
+          "merchant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant Id"
+          },
+          "mcc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mcc",
+            "description": "Merchant category code"
+          },
+          "ip_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ip Address",
+            "description": "Client IP address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "card_id",
+          "amount",
+          "currency",
+          "country"
+        ],
+        "title": "TransactionDetails",
+        "description": "Transaction details from the decision event."
+      },
+      "TransactionListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TransactionQueryResult"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "default": false
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Cursor for next page (null if no more pages)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page_size"
+        ],
+        "title": "TransactionListResponse",
+        "description": "Paginated transaction list with keyset pagination."
+      },
+      "TransactionOverview": {
+        "properties": {
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionQueryResult"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review",
+            "description": "Transaction review details if exists"
+          },
+          "notes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Notes",
+            "description": "Analyst notes on this transaction"
+          },
+          "case": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case",
+            "description": "Case details if transaction is linked to a case"
+          },
+          "matched_rules": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Matched Rules",
+            "description": "Matched rules (only if include_rules=true)"
+          },
+          "last_activity_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Activity At",
+            "description": "Last activity timestamp across review/notes/case"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction"
+        ],
+        "title": "TransactionOverview",
+        "description": "Combined transaction overview for analyst UI (single call).\n\nIncludes transaction, review, notes, case, and optional matched_rules."
+      },
+      "TransactionQueryResult": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "transaction_id": {
+            "type": "string",
+            "title": "Transaction Id"
+          },
+          "evaluation_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "card_id": {
+            "type": "string",
+            "title": "Card Id"
+          },
+          "card_last4": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Last4"
+          },
+          "card_network": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "merchant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant Id"
+          },
+          "mcc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mcc"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/DecisionType"
+          },
+          "decision_reason": {
+            "$ref": "#/components/schemas/DecisionReason"
+          },
+          "decision_score": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Score"
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RiskLevel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ruleset_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ruleset Key"
+          },
+          "ruleset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ruleset Id"
+          },
+          "ruleset_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ruleset Version"
+          },
+          "transaction_context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transaction Context"
+          },
+          "velocity_snapshot": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Velocity Snapshot"
+          },
+          "velocity_results": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Velocity Results"
+          },
+          "engine_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine Metadata"
+          },
+          "transaction_timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Transaction Timestamp"
+          },
+          "ingestion_timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ingestion Timestamp"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "ingestion_source": {
+            "$ref": "#/components/schemas/IngestionSource"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "matched_rules": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Matched Rules"
+          },
+          "review_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Status"
+          },
+          "review_priority": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Priority"
+          },
+          "review_assigned_analyst_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Assigned Analyst Id"
+          },
+          "review_case_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Case Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_id",
+          "card_id",
+          "card_last4",
+          "card_network",
+          "amount",
+          "currency",
+          "merchant_id",
+          "mcc",
+          "decision",
+          "decision_reason",
+          "transaction_timestamp",
+          "ingestion_timestamp",
+          "ingestion_source",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "TransactionQueryResult",
+        "description": "Transaction query result - matches fraud_gov.transactions table."
+      },
+      "TransactionStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "IN_REVIEW",
+          "ESCALATED",
+          "RESOLVED",
+          "CLOSED"
+        ],
+        "title": "TransactionStatus",
+        "description": "Transaction review status in workflow."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WorklistItem": {
+        "properties": {
+          "review_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Review Id"
+          },
+          "transaction_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Transaction Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TransactionStatus"
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority"
+          },
+          "card_id": {
+            "type": "string",
+            "title": "Card Id"
+          },
+          "card_last4": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Last4"
+          },
+          "transaction_amount": {
+            "type": "number",
+            "title": "Transaction Amount"
+          },
+          "transaction_currency": {
+            "type": "string",
+            "title": "Transaction Currency"
+          },
+          "transaction_timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Transaction Timestamp"
+          },
+          "decision": {
+            "type": "string",
+            "title": "Decision"
+          },
+          "decision_reason": {
+            "type": "string",
+            "title": "Decision Reason"
+          },
+          "decision_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Score"
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RiskLevel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assigned_analyst_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Analyst Id"
+          },
+          "assigned_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned At"
+          },
+          "case_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "case_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Number"
+          },
+          "first_reviewed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Reviewed At"
+          },
+          "last_activity_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Activity At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "merchant_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant Id"
+          },
+          "merchant_category_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merchant Category Code"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "review_id",
+          "transaction_id",
+          "status",
+          "priority",
+          "card_id",
+          "transaction_amount",
+          "transaction_currency",
+          "transaction_timestamp",
+          "decision",
+          "decision_reason",
+          "created_at"
+        ],
+        "title": "WorklistItem",
+        "description": "A single item in the analyst worklist."
+      },
+      "WorklistResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WorklistItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page_size",
+          "has_more"
+        ],
+        "title": "WorklistResponse",
+        "description": "Response schema for worklist queries."
+      },
+      "WorklistStats": {
+        "properties": {
+          "unassigned_total": {
+            "type": "integer",
+            "title": "Unassigned Total"
+          },
+          "unassigned_by_priority": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Unassigned By Priority"
+          },
+          "unassigned_by_risk": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Unassigned By Risk"
+          },
+          "my_assigned_total": {
+            "type": "integer",
+            "title": "My Assigned Total"
+          },
+          "my_assigned_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "My Assigned By Status"
+          },
+          "resolved_today": {
+            "type": "integer",
+            "title": "Resolved Today"
+          },
+          "resolved_by_code": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Resolved By Code"
+          },
+          "avg_resolution_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Resolution Minutes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unassigned_total",
+          "unassigned_by_priority",
+          "unassigned_by_risk",
+          "my_assigned_total",
+          "my_assigned_by_status",
+          "resolved_today",
+          "resolved_by_code"
+        ],
+        "title": "WorklistStats",
+        "description": "Statistics for analyst worklist."
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}
