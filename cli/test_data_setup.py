@@ -91,7 +91,7 @@ def get_registry_status(token: str) -> dict | None:
 
 def main():
     """Main entry point."""
-    print(f"Test Data Setup for Card Fraud Rule Engine")
+    print("Test Data Setup for Card Fraud Rule Engine")
     print(f"Target: {BASE_URL}\n")
 
     # Check if engine is running

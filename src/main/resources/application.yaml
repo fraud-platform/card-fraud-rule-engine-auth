@@ -11,11 +11,6 @@ quarkus:
     host: 0.0.0.0
     limits:
       max-body-size: 1M
-    # HTTP/2 support for improved throughput
-    version: 2.0  # Enable HTTP/2
-    # Enable HTTP/2 with ALPN for TLS connections
-    # Note: HTTP/2 is available over plain HTTP for development
-    # For production, use TLS for true HTTP/2 with ALPN
     # IO thread pool for request handling
     io-threads: ${HTTP_IO_THREADS:32}  # Increased from default 8*cores
 
@@ -36,12 +31,6 @@ quarkus:
     max-waiting-handlers: ${REDIS_MAX_WAITING_HANDLERS:100}  # Morning baseline value
     # Connection timeout (milliseconds)
     timeout: ${REDIS_TIMEOUT:5s}
-    # Protocol version (RESP3 is faster)
-    protocol: ${REDIS_PROTOCOL:RESP3}
-
-  # Kafka Configuration (via environment - Doppler)
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
   # Logging - Use INFO by default, DEBUG only for specific categories
   log:
@@ -62,7 +51,7 @@ quarkus:
   swagger-ui:
     always-include: false
     path: /swagger-ui
-  openapi:
+  smallrye-openapi:
     path: /openapi
     info-title: Card Fraud Rule Engine API
     info-version: 1.0.0
@@ -176,8 +165,6 @@ mp:
       level: DEBUG
     http:
       port: 8081
-    smallrye-fault-tolerance:
-      enabled: false
     devservices:
       enabled: false  # Disable dev services, use our docker-compose infra
     swagger-ui:
@@ -195,7 +182,7 @@ mp:
     log:
       level: WARN
       console:
-        enable: true  # Enable console logging for stdout-based collectors (Docker/K8s/Fluentd)
+        enabled: true  # Enable console logging for stdout-based collectors (Docker/K8s/Fluentd)
         format: "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%c{3.}] (%t) %s%e%n"
       console-json:
         enable: false  # Set to true for JSON format (when log collector supports it)
@@ -211,10 +198,6 @@ mp:
   quarkus:
     redis:
       hosts: redis://localhost:6379
-    kafka:
-      bootstrap-servers: localhost:9092
-    smallrye-fault-tolerance:
-      enabled: false
   smallrye:
     faulttolerance:
       enabled: false

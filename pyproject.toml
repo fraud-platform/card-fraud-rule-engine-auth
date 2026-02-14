@@ -1,7 +1,7 @@
 [project]
-name = "card-fraud-rule-engine"
+name = "card-fraud-rule-engine-auth"
 version = "1.0.0"
-description = "Card Fraud Rule Engine"
+description = "Card Fraud Rule Engine AUTH Service"
 requires-python = ">=3.11"
 
 [build-system]
@@ -52,6 +52,7 @@ test-e2e = "cli.test_runner:test_e2e"
 test-e2e-no-auth = "cli.test_runner:test_e2e_no_auth"
 test-load = "cli.test_runner:test_load"
 test-load-no-auth = "cli.test_runner:test_load_no_auth"
+lint = "cli.lint_gate:main"
 snyk-test = "cli.snyk_gate:test"
 
 # Data setup

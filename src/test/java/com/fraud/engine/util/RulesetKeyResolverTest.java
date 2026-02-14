@@ -52,6 +52,6 @@ class RulesetKeyResolverTest {
     void resolvesFromEnumEvaluationType() {
         TransactionContext tx = new TransactionContext();
         tx.setTransactionType("AUTHORIZATION");
-        assertEquals("CARD_MONITORING", resolver.resolve(tx, RuleEvaluator.EvaluationType.MONITORING));
+        assertEquals("CARD_AUTH", resolver.resolve(tx, RuleEvaluator.EvaluationType.AUTH));
     }
 }

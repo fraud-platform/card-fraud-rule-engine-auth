@@ -110,7 +110,7 @@ wheels = [
 ]
 
 [[package]]
-name = "card-fraud-rule-engine"
+name = "card-fraud-rule-engine-auth"
 version = "1.0.0"
 source = { editable = "." }
 

@@ -5,11 +5,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fraud.engine.domain.Decision;
 import com.fraud.engine.domain.TransactionContext;
 import com.fraud.engine.engine.RuleEvaluator;
-import com.fraud.engine.kafka.DecisionPublisher;
-import com.fraud.engine.kafka.EventPublishException;
 import com.fraud.engine.outbox.AsyncOutboxDispatcher;
 import com.fraud.engine.resource.dto.ErrorResponse;
-import com.fraud.engine.util.DecisionNormalizer;
 import com.fraud.engine.util.RulesetKeyResolver;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Priority;
@@ -64,9 +61,6 @@ public class LoadSheddingFilter implements ContainerRequestFilter, ContainerResp
     AsyncOutboxDispatcher asyncOutboxDispatcher;
 
     @Inject
-    DecisionPublisher decisionPublisher;
-
-    @Inject
     RulesetKeyResolver rulesetKeyResolver;
 
     private Semaphore permits;
@@ -99,27 +93,12 @@ public class LoadSheddingFilter implements ContainerRequestFilter, ContainerResp
                     maxConcurrent - permits.availablePermits(), shedCount.get());
 
             // Return fail-open response
-            String evaluationType = resolveEvaluationType(requestContext.getUriInfo().getPath());
             ParsedRequest parsed = parseRequestBody(requestContext);
 
-            String normalizedDecision = null;
-            if (RuleEvaluator.EVAL_MONITORING.equalsIgnoreCase(evaluationType)) {
-                normalizedDecision = DecisionNormalizer.normalizeMONITORINGDecision(parsed != null ? parsed.decision : null);
-                if (normalizedDecision == null) {
-                    requestContext.abortWith(
-                            Response.status(Response.Status.BAD_REQUEST)
-                                    .type(MediaType.APPLICATION_JSON)
-                                    .entity(new ErrorResponse("INVALID_REQUEST", "decision must be APPROVE or DECLINE"))
-                                    .build()
-                    );
-                    return;
-                }
-            }
-
-            Decision shedDecision = createShedDecision(evaluationType, parsed, normalizedDecision);
+            Decision shedDecision = createShedDecision(RuleEvaluator.EVAL_AUTH, parsed, null);
             String jsonResponse = objectMapper.writeValueAsString(shedDecision);
 
-            ErrorResponse persistenceError = persistShedDecision(parsed, shedDecision, evaluationType);
+            ErrorResponse persistenceError = persistShedDecision(parsed, shedDecision, RuleEvaluator.EVAL_AUTH);
             if (persistenceError != null) {
                 requestContext.abortWith(
                         Response.status(Response.Status.SERVICE_UNAVAILABLE)
@@ -198,13 +177,6 @@ public class LoadSheddingFilter implements ContainerRequestFilter, ContainerResp
     }
 
     private String resolveEvaluationType(String path) {
-        if (path == null) {
-            return RuleEvaluator.EVAL_AUTH;
-        }
-        String normalized = path.toLowerCase();
-        if (normalized.contains("/monitoring")) {
-            return RuleEvaluator.EVAL_MONITORING;
-        }
         return RuleEvaluator.EVAL_AUTH;
     }
 
@@ -247,33 +219,15 @@ public class LoadSheddingFilter implements ContainerRequestFilter, ContainerResp
                 shedDecision.setTransactionContext(parsed.context);
             }
 
-            if (RuleEvaluator.EVAL_AUTH.equalsIgnoreCase(evaluationType)) {
-                if (tx == null || tx.getTransactionId() == null) {
-                    LOG.warn("Load shed AUTH decision missing transaction context; skipping async durability");
-                    return null;
-                }
-                asyncOutboxDispatcher.enqueueAuth(tx, shedDecision);
+            if (tx == null || tx.getTransactionId() == null) {
+                LOG.warn("Load shed AUTH decision missing transaction context; skipping async durability");
                 return null;
             }
-
-            if (shedDecision.getTransactionId() == null || decisionPublisher == null) {
-                LOG.warn("Load shed MONITORING decision missing transaction_id or publisher");
-                return new ErrorResponse("EVENT_PUBLISH_FAILED", "Failed to persist monitoring decision event");
-            }
-            decisionPublisher.publishDecisionAwait(shedDecision);
+            asyncOutboxDispatcher.enqueueAuth(tx, shedDecision);
             return null;
-        } catch (EventPublishException e) {
-            LOG.warnf(e, "Failed to publish load shed decision");
-            if (RuleEvaluator.EVAL_AUTH.equalsIgnoreCase(evaluationType)) {
-                return null;
-            }
-            return new ErrorResponse("EVENT_PUBLISH_FAILED", "Failed to persist monitoring decision event");
         } catch (Exception e) {
             LOG.warnf(e, "Failed to persist load shed decision");
-            if (RuleEvaluator.EVAL_AUTH.equalsIgnoreCase(evaluationType)) {
-                return null;
-            }
-            return new ErrorResponse("EVENT_PUBLISH_FAILED", "Failed to persist monitoring decision event");
+            return null;
         }
     }
 

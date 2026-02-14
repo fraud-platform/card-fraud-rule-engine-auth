@@ -2,7 +2,6 @@ package com.fraud.engine.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.fraud.engine.kafka.DecisionPublisher;
 import com.fraud.engine.outbox.AsyncOutboxDispatcher;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerResponseContext;
@@ -39,9 +38,6 @@ class LoadSheddingFilterTest {
     @Mock
     AsyncOutboxDispatcher asyncOutboxDispatcher;
 
-    @Mock
-    DecisionPublisher decisionPublisher;
-
     private LoadSheddingFilter filter;
 
     @BeforeEach
@@ -53,55 +49,7 @@ class LoadSheddingFilterTest {
         mapper.registerModule(new JavaTimeModule());
         setField("objectMapper", mapper);
         setField("asyncOutboxDispatcher", asyncOutboxDispatcher);
-        setField("decisionPublisher", decisionPublisher);
         filter.init();
-    }
-
-    @Test
-    void monitoringInvalidDecisionReturnsBadRequest() throws Exception {
-        // When maxConcurrent is 0, ALL requests are load shed before validation
-        // This test verifies that invalid MONITORING decisions are rejected even during load shedding
-        String body = "{" +
-                "\"transaction_id\":\"txn-1\"," +
-                "\"transaction_type\":\"PURCHASE\"," +
-                "\"decision\":\"REVIEW\"" +
-                "}";
-
-        when(requestContext.getUriInfo()).thenReturn(uriInfo);
-        when(uriInfo.getPath()).thenReturn("/v1/evaluate/monitoring");
-        when(requestContext.getEntityStream()).thenReturn(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)));
-
-        filter.filter(requestContext);
-
-        ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
-        verify(requestContext).abortWith(captor.capture());
-        // Invalid decision (REVIEW) should return 400 even when load shedding
-        assertThat(captor.getValue().getStatus()).isEqualTo(400);
-    }
-
-    @Test
-    void monitoringValidDecisionReturnsOk() throws Exception {
-        String body = "{" +
-                "\"transaction_id\":\"txn-2\"," +
-                "\"transaction_type\":\"PURCHASE\"," +
-                "\"decision\":\"DECLINE\"" +
-                "}";
-
-        when(requestContext.getUriInfo()).thenReturn(uriInfo);
-        when(uriInfo.getPath()).thenReturn("/v1/evaluate/monitoring");
-        when(requestContext.getEntityStream()).thenReturn(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)));
-
-        filter.filter(requestContext);
-
-        ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
-        verify(requestContext).abortWith(captor.capture());
-        Response response = captor.getValue();
-        assertThat(response.getStatus()).isEqualTo(200);
-        assertThat(response.getHeaders().getFirst("X-Load-Shed")).isEqualTo("true");
-        assertThat(response.getEntity()).isInstanceOf(String.class);
-        assertThat((String) response.getEntity()).contains("\"decision\":\"DECLINE\"");
-        verify(decisionPublisher).publishDecisionAwait(any());
-        verify(asyncOutboxDispatcher, never()).enqueueAuth(any(), any());
     }
 
     @Test
@@ -124,7 +72,6 @@ class LoadSheddingFilterTest {
         assertThat((String) response.getEntity()).contains("\"decision\":\"APPROVE\"");
         assertThat((String) response.getEntity()).contains("\"ruleset_key\":\"CARD_AUTH\"");
         verify(asyncOutboxDispatcher).enqueueAuth(any(), any());
-        verify(decisionPublisher, never()).publishDecisionAwait(any());
     }
 
     @Test
@@ -229,21 +176,6 @@ class LoadSheddingFilterTest {
         ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
         verify(requestContext).abortWith(captor.capture());
         assertThat(captor.getValue().getStatus()).isEqualTo(200);
-    }
-
-    @Test
-    void monitoringLoadShedWithNullTransactionIdReturnsServiceUnavailable() throws Exception {
-        String body = "{\"decision\":\"APPROVE\"}";
-
-        when(requestContext.getUriInfo()).thenReturn(uriInfo);
-        when(uriInfo.getPath()).thenReturn("/v1/evaluate/monitoring");
-        when(requestContext.getEntityStream()).thenReturn(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)));
-
-        filter.filter(requestContext);
-
-        ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
-        verify(requestContext).abortWith(captor.capture());
-        assertThat(captor.getValue().getStatus()).isEqualTo(503);
     }
 
     @Test

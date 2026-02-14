@@ -61,7 +61,7 @@ public class StreamingTransactionReader implements MessageBodyReader<Transaction
 
             // Parse field by field
             while (parser.nextToken() != JsonToken.END_OBJECT) {
-                String fieldName = parser.getCurrentName();
+                String fieldName = parser.currentName();
                 parser.nextToken(); // Move to value
 
                 parseField(tx, fieldName, parser);

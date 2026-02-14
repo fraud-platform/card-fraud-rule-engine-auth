@@ -11,10 +11,10 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
 /**
- * Integration tests for PREAUTH evaluation.
+ * Integration tests for AUTH evaluation.
  */
 @QuarkusTest
-class PreauthIntegrationTest {
+class AuthIntegrationTest {
 
     private TransactionContext createTransaction(String txnId, String cardHash, double amount, String countryCode) {
         TransactionContext txn = new TransactionContext();
@@ -100,6 +100,19 @@ class PreauthIntegrationTest {
             .body("decision", equalTo("APPROVE"))
             .body("engine_mode", equalTo("FAIL_OPEN"))
             .body("engine_error_code", notNullValue());
+    }
+
+    @Test
+    void testMonitoringEndpointReturns404() {
+        TransactionContext txn = createTransaction("txn-test-404", "card-404", 50.00, null);
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(txn)
+        .when()
+            .post("/v1/evaluate/monitoring")
+        .then()
+            .statusCode(404);
     }
 
     /**

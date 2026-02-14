@@ -501,16 +501,12 @@ public class TransactionContext {
         getCustomFields().put(key, value);
     }
 
-    // ========== Legacy Method (for backward compatibility) ==========
-
+    // ========== Context Projection ==========
     /**
-     * Converts this transaction to a flat map for rule evaluation.
-     * <p><b>Deprecated:</b> This method creates a new HashMap on each call.
-     * Use {@link #getField(int)} instead for O(1) access without allocations.
+     * Converts this transaction to a flat map for rule evaluation and downstream payloads.
      *
-     * @return a map containing all field values
+     * @return a map containing all populated field values
      */
-    @Deprecated
     public Map<String, Object> toEvaluationContext() {
         Map<String, Object> context = new HashMap<>(32); // Pre-size to avoid resizing
 

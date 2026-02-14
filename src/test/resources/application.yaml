@@ -19,19 +19,11 @@ quarkus:
   redis:
     hosts: redis://localhost:6379
 
-  # Kafka Configuration
-  kafka:
-    bootstrap-servers: localhost:9092
-
-  # Disable fault tolerance for tests
-  smallrye-fault-tolerance:
-    enabled: false
-
   # Logging - minimal for tests
   log:
     level: WARN
     console:
-      enable: true
+      enabled: true
       format: "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%c{3.}] (%t) %s%e%n"
     category:
       "com.fraud.engine":
@@ -48,7 +40,7 @@ quarkus:
   # Swagger/OpenAPI - disabled for unit tests
   swagger-ui:
     always-include: false
-  openapi:
+  smallrye-openapi:
     path: /openapi
     info-title: Card Fraud Rule Engine API (Test)
     info-version: 1.0.0-test
@@ -121,10 +113,6 @@ smallrye:
   quarkus:
     redis:
       hosts: redis://localhost:6379
-    kafka:
-      bootstrap-servers: localhost:9092
-    smallrye-fault-tolerance:
-      enabled: false
   smallrye:
     faulttolerance:
       enabled: false

@@ -10,17 +10,6 @@ Usage:
     uv run doppler-prod         # Run tests with Doppler (prod config)
 """
 
-"""Doppler development commands for Java/Quarkus.
-
-Run development commands with Doppler secrets injected.
-
-Usage:
-    uv run doppler-local        # Run dev server with Doppler (local config)
-    uv run doppler-local-test   # Run tests with Doppler (local config - local Redis)
-    uv run doppler-test         # Run tests with Doppler (test config)
-    uv run doppler-prod         # Run tests with Doppler (prod config)
-"""
-
 import os
 
 from cli._runner import run

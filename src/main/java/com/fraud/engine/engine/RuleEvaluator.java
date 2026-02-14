@@ -23,13 +23,12 @@ public class RuleEvaluator {
     private static final Logger LOG = Logger.getLogger(RuleEvaluator.class);
 
     public static final String EVAL_AUTH = "AUTH";
-    public static final String EVAL_MONITORING = "MONITORING";
     public static final String EVAL_REPLAY_MODE = "REPLAY";
 
     private static final boolean STATIC_DEBUG_ENABLED = EvaluationConfig.isStaticDebugEnabled();
 
     public enum EvaluationType {
-        AUTH, MONITORING, REPLAY;
+        AUTH, REPLAY;
 
         public String getValue() {
             return name();
@@ -204,14 +203,6 @@ public class RuleEvaluator {
     private void handleEvaluationError(Decision decision, TransactionContext transaction, Exception e) {
         decision.setEngineErrorCode("EVALUATION_ERROR");
         decision.setEngineErrorMessage("Error during rule evaluation: " + e.getMessage());
-        if (EVAL_MONITORING.equalsIgnoreCase(decision.getEvaluationType())) {
-            decision.setEngineMode(Decision.MODE_DEGRADED);
-            String fallbackDecision = transaction != null ? transaction.getDecision() : null;
-            decision.setDecision(fallbackDecision != null ? fallbackDecision : Decision.DECISION_APPROVE);
-            engineMetrics.incrementDegraded();
-            LOG.error("Monitoring evaluation error, returning DEGRADED decision envelope", e);
-            return;
-        }
         decision.setEngineMode(Decision.MODE_FAIL_OPEN);
         decision.setDecision(Decision.DECISION_APPROVE);
         engineMetrics.incrementFailOpen();
