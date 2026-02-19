@@ -224,3 +224,14 @@ docs/04-testing/NEXT-SESSION-*.md
 docs/04-testing/JFR-ANALYSIS-*.md
 docs/04-testing/PROFILING-RESULTS-*.md
 
+# -----------------------------------------------------------------------------
+# Temporary load-test analysis artifacts (Locust outputs, local run scratch)
+# -----------------------------------------------------------------------------
+04-testing/*.out.log
+04-testing/*.err.log
+04-testing/*_stats.csv
+04-testing/*_stats_history.csv
+04-testing/*_exceptions.csv
+04-testing/*_failures.csv
+04-testing/*-container-stats-*.log
+

@@ -468,7 +468,7 @@ The engine uses pre-compiled rulesets for optimal performance:
 
 | Layer | Technology |
 |-------|------------|
-| **Runtime** | Java 21 (Temurin) |
+| **Runtime** | Java 25 (Temurin) |
 | **Framework** | Quarkus 3.8.1 |
 | **Build** | Maven 3.9+ |
 | **REST** | Jakarta REST (formerly JAX-RS) |

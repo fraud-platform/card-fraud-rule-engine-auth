@@ -127,21 +127,15 @@ public class DecisionPublisher {
                 LOG.debugf("Publishing decision event (async): %s", decision.getDecisionId());
             }
 
-            // Fire-and-forget: return immediately, don't wait for Kafka ack
             decisionEmitter.send(payload)
-                .subscribe()
-                .with(
-                    v -> {
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debugf("Decision event published (async): %s", decision.getDecisionId());
-                        }
-                    },
-                    err -> LOG.errorf(err, "Failed to publish decision event (async): %s", decision.getDecisionId())
-                );
+                    .subscribe()
+                    .with(v -> {
+                                if (LOG.isDebugEnabled()) {
+                                    LOG.debugf("Decision event published (async): %s", decision.getDecisionId());
+                                }
+                            },
+                            err -> LOG.errorf(err, "Failed to publish decision event (async): %s", decision.getDecisionId()));
 
-        } catch (JsonProcessingException e) {
-            LOG.errorf(e, "Failed to serialize decision event: %s", decision.getDecisionId());
-            // Don't throw - just log and continue (fail-open for performance)
         } catch (Exception e) {
             LOG.errorf(e, "Failed to publish decision event: %s", decision.getDecisionId());
             // Don't throw - just log and continue
@@ -156,12 +150,13 @@ public class DecisionPublisher {
      * @return the event for publishing
      */
     private DecisionEventCreate toDecisionEventCreate(Decision decision) {
+        String now = Instant.now().toString();
         DecisionEventCreate event = new DecisionEventCreate();
 
         // Required fields
         event.setTransactionId(decision.getTransactionId());
-        event.setOccurredAt(decision.getTimestamp() != null ? decision.getTimestamp().toString() : Instant.now().toString());
-        event.setProducedAt(Instant.now().toString());
+        event.setOccurredAt(decision.getTimestamp() != null ? decision.getTimestamp().toString() : now);
+        event.setProducedAt(now);
         event.setDecision(decision.getDecision());
         event.setDecisionReason(determineDecisionReason(decision));
         event.setEvaluationType(decision.getEvaluationType());
@@ -176,7 +171,7 @@ public class DecisionPublisher {
 
         // Matched rules
         if (decision.getMatchedRules() != null && !decision.getMatchedRules().isEmpty()) {
-            event.setMatchedRules(buildRuleMatches(decision));
+            event.setMatchedRules(buildRuleMatches(decision, now));
         }
 
         // Risk level (could be calculated based on rules matched)
@@ -235,16 +230,16 @@ public class DecisionPublisher {
     /**
      * Builds the list of RuleMatch objects from the decision's matched rules.
      */
-    private List<DecisionEventCreate.RuleMatch> buildRuleMatches(Decision decision) {
+    private List<DecisionEventCreate.RuleMatch> buildRuleMatches(Decision decision, String matchedAt) {
         return decision.getMatchedRules().stream()
-                .map(this::toRuleMatch)
+                .map(m -> toRuleMatch(m, matchedAt))
                 .collect(Collectors.toList());
     }
 
     /**
      * Converts a Decision.MatchedRule to a DecisionEventCreate.RuleMatch.
      */
-    private DecisionEventCreate.RuleMatch toRuleMatch(Decision.MatchedRule matched) {
+    private DecisionEventCreate.RuleMatch toRuleMatch(Decision.MatchedRule matched, String matchedAt) {
         DecisionEventCreate.RuleMatch ruleMatch = new DecisionEventCreate.RuleMatch();
 
         ruleMatch.setRuleId(matched.getRuleId());
@@ -255,7 +250,7 @@ public class DecisionPublisher {
         ruleMatch.setRuleAction(matched.getAction());
         ruleMatch.setConditionsMet(matched.getConditionsMet());
         ruleMatch.setConditionValues(matched.getConditionValues());
-        ruleMatch.setMatchedAt(Instant.now().toString());
+        ruleMatch.setMatchedAt(matchedAt);
         ruleMatch.setMatchReasonText(buildMatchReasonText(matched));
 
         return ruleMatch;

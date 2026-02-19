@@ -23,7 +23,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.io.IOException;
-import java.io.ByteArrayInputStream;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
@@ -69,7 +68,7 @@ public class LoadSheddingFilter implements ContainerRequestFilter, ContainerResp
 
     @PostConstruct
     void init() {
-        permits = new Semaphore(maxConcurrent, true); // fair=true for predictable behavior
+        permits = new Semaphore(maxConcurrent, false);
         LOG.infof("LoadSheddingFilter initialized: enabled=%s, maxConcurrent=%d", enabled, maxConcurrent);
     }
 
@@ -137,7 +136,7 @@ public class LoadSheddingFilter implements ContainerRequestFilter, ContainerResp
      */
     private Decision createShedDecision(String evaluationType, ParsedRequest parsed, String normalizedDecision) {
         String transactionId = parsed != null ? parsed.transactionId : null;
-        Map<String, Object> context = parsed != null ? parsed.context : null;
+        Map<String, Object> context = parsed != null ? parsed.getOrParseContext(objectMapper) : null;
 
         Decision decision = transactionId != null ? new Decision(transactionId, evaluationType) : new Decision();
         decision.setEvaluationType(evaluationType);
@@ -148,7 +147,7 @@ public class LoadSheddingFilter implements ContainerRequestFilter, ContainerResp
         decision.setEngineErrorMessage("Request shed due to capacity limits");
         decision.setProcessingTimeMs(0);
         decision.setTransactionContext(context);
-        TransactionContext tx = parsed != null ? parsed.transactionContext : null;
+        TransactionContext tx = parsed != null ? parsed.getOrParseTransactionContext(objectMapper) : null;
         decision.setRulesetKey(resolver().resolve(tx, evaluationType));
         return decision;
     }
@@ -157,18 +156,12 @@ public class LoadSheddingFilter implements ContainerRequestFilter, ContainerResp
         ParsedRequest parsed = new ParsedRequest();
         try {
             byte[] body = requestContext.getEntityStream().readAllBytes();
-            requestContext.setEntityStream(new ByteArrayInputStream(body));
 
             if (body.length > 0) {
                 JsonNode node = objectMapper.readTree(body);
                 parsed.transactionId = readText(node, "transaction_id", "transactionId");
                 parsed.decision = readText(node, "decision");
-                parsed.context = objectMapper.convertValue(node, Map.class);
-                try {
-                    parsed.transactionContext = objectMapper.convertValue(node, TransactionContext.class);
-                } catch (IllegalArgumentException ignored) {
-                    // best-effort
-                }
+                parsed.bodyNode = node;
             }
         } catch (Exception e) {
             LOG.debugf("Failed to parse request body for load shed decision: %s", e.getMessage());
@@ -196,8 +189,26 @@ public class LoadSheddingFilter implements ContainerRequestFilter, ContainerResp
     private static class ParsedRequest {
         private String transactionId;
         private String decision;
+        private JsonNode bodyNode;
         private Map<String, Object> context;
         private TransactionContext transactionContext;
+
+        Map<String, Object> getOrParseContext(ObjectMapper mapper) {
+            if (context == null && bodyNode != null) {
+                context = mapper.convertValue(bodyNode, Map.class);
+            }
+            return context;
+        }
+
+        TransactionContext getOrParseTransactionContext(ObjectMapper mapper) {
+            if (transactionContext == null && bodyNode != null) {
+                try {
+                    transactionContext = mapper.convertValue(bodyNode, TransactionContext.class);
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+            return transactionContext;
+        }
     }
 
     /**
@@ -209,14 +220,14 @@ public class LoadSheddingFilter implements ContainerRequestFilter, ContainerResp
 
     private ErrorResponse persistShedDecision(ParsedRequest parsed, Decision shedDecision, String evaluationType) {
         try {
-            TransactionContext tx = parsed != null ? parsed.transactionContext : null;
-            if (tx == null && parsed != null && parsed.context != null) {
-                tx = objectMapper.convertValue(parsed.context, TransactionContext.class);
+            TransactionContext tx = parsed != null ? parsed.getOrParseTransactionContext(objectMapper) : null;
+            if (tx == null && parsed != null && parsed.getOrParseContext(objectMapper) != null) {
+                tx = objectMapper.convertValue(parsed.getOrParseContext(objectMapper), TransactionContext.class);
             }
             if (tx != null) {
                 shedDecision.setTransactionContext(tx.toEvaluationContext());
-            } else if (parsed != null && parsed.context != null) {
-                shedDecision.setTransactionContext(parsed.context);
+            } else if (parsed != null && parsed.getOrParseContext(objectMapper) != null) {
+                shedDecision.setTransactionContext(parsed.getOrParseContext(objectMapper));
             }
 
             if (tx == null || tx.getTransactionId() == null) {

@@ -10,7 +10,7 @@ Stateless Quarkus runtime for card fraud AUTH decisioning (split from card-fraud
 ## Quick Start
 
 Prerequisites:
-- Java 21+ (Java 25 supported)
+- Java 25+
 - Maven 3.9+
 - Python 3.11+
 - `uv`

@@ -107,7 +107,7 @@ public class RulesetRegistry {
      */
     public Ruleset getRulesetWithFallback(String country, String rulesetKey) {
         if (country != null && !country.isBlank() && !"global".equalsIgnoreCase(country)) {
-            Ruleset countrySpecific = getRuleset(country.toUpperCase(), rulesetKey);
+            Ruleset countrySpecific = getRuleset(country.toUpperCase(java.util.Locale.ROOT), rulesetKey);
             if (countrySpecific != null) {
                 return countrySpecific;
             }

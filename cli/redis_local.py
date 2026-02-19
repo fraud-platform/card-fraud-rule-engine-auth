@@ -15,12 +15,24 @@ Usage:
 
 import subprocess
 import sys
+from pathlib import Path
 
 from cli._runner import run
 
 # Container names: shared platform vs local fallback
 PLATFORM_CONTAINER = "card-fraud-redis"
 LOCAL_CONTAINER = "card-fraud-redis"  # Updated to match platform naming
+LOCAL_COMPOSE_FILE = "docker-compose.yml"
+
+
+def _has_local_compose() -> bool:
+    return Path(LOCAL_COMPOSE_FILE).exists()
+
+
+def _print_missing_compose_help() -> None:
+    print(f"[ERROR] {LOCAL_COMPOSE_FILE} not found in this split service repository.")
+    print("       Start shared infra via card-fraud-platform instead:")
+    print("         cd ../card-fraud-platform && doppler run -- uv run platform-up")
 
 
 def _is_platform_container_running() -> bool:
@@ -40,7 +52,10 @@ def up() -> None:
         print("     Managed by: card-fraud-platform")
         print("     Endpoint: redis://localhost:6379")
         return
-    run(["docker", "compose", "-f", "docker-compose.yml", "up", "-d", "redis"])
+    if not _has_local_compose():
+        _print_missing_compose_help()
+        raise SystemExit(1)
+    run(["docker", "compose", "-f", LOCAL_COMPOSE_FILE, "up", "-d", "redis"])
 
 
 def down() -> None:
@@ -49,12 +64,18 @@ def down() -> None:
         print(f"[INFO] Redis is managed by card-fraud-platform ({PLATFORM_CONTAINER})")
         print("       To stop: cd ../card-fraud-platform && uv run platform-down")
         return
-    run(["docker", "compose", "-f", "docker-compose.yml", "stop", "redis"])
+    if not _has_local_compose():
+        _print_missing_compose_help()
+        raise SystemExit(1)
+    run(["docker", "compose", "-f", LOCAL_COMPOSE_FILE, "stop", "redis"])
 
 
 def reset() -> None:
     """Stop Redis containers and remove all data."""
-    run(["docker", "compose", "-f", "docker-compose.yml", "rm", "-f", "-v", "redis"])
+    if not _has_local_compose():
+        _print_missing_compose_help()
+        raise SystemExit(1)
+    run(["docker", "compose", "-f", LOCAL_COMPOSE_FILE, "rm", "-f", "-v", "redis"])
 
 
 def verify() -> int:
@@ -71,8 +92,11 @@ def verify() -> int:
     if _is_platform_container_running():
         print(f"[OK] Redis running via shared platform ({container})")
     else:
+        if not _has_local_compose():
+            _print_missing_compose_help()
+            return 1
         result = subprocess.run(
-            ["docker", "compose", "-f", "docker-compose.yml", "ps", "redis"],
+            ["docker", "compose", "-f", LOCAL_COMPOSE_FILE, "ps", "redis"],
             capture_output=True,
             text=True,
         )
@@ -125,12 +149,18 @@ def infra_up() -> None:
         print("[OK] Infrastructure already running via shared platform")
         print("     Managed by: card-fraud-platform")
         return
-    run(["docker", "compose", "-f", "docker-compose.yml", "up", "-d"])
+    if not _has_local_compose():
+        _print_missing_compose_help()
+        raise SystemExit(1)
+    run(["docker", "compose", "-f", LOCAL_COMPOSE_FILE, "up", "-d"])
 
 
 def infra_down() -> None:
     """Stop all local infrastructure."""
-    run(["docker", "compose", "-f", "docker-compose.yml", "down"])
+    if not _has_local_compose():
+        _print_missing_compose_help()
+        raise SystemExit(1)
+    run(["docker", "compose", "-f", LOCAL_COMPOSE_FILE, "down"])
 
 
 def main() -> int:

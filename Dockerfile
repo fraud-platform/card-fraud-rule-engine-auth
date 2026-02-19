@@ -17,7 +17,7 @@
 
 # Stage 1: Build with Maven
 # =============================================================================
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM maven:3.9-eclipse-temurin-25 AS build
 
 WORKDIR /build
 
@@ -32,7 +32,7 @@ RUN mvn clean package -DskipTests -B
 # =============================================================================
 # Stage 2: Runtime - minimal JRE Alpine
 # =============================================================================
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 
 # Create non-root user (no packages needed — Alpine has wget via busybox)
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
@@ -58,8 +58,8 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \
 #
 # GC Options (set JAVA_GC_OPTS env var to override):
 #   G1GC (default):        "-XX:+UseG1GC -XX:+UseStringDeduplication"
-#   ZGC (Java 21+):        "-XX:+UseZGC -XX:+ZGenerational"
-#   Shenandoah (Java 21+): "-XX:+UseShenandoahGC"
+#   ZGC (Java 25+):        "-XX:+UseZGC -XX:+ZGenerational"
+#   Shenandoah (Java 25+): "-XX:+UseShenandoahGC"
 #
 # CDS Options (set JAVA_CDS_OPTS to enable):
 #   "-XX:SharedArchiveFile=/app/quarkus-app/app-cds.jsa -Xshare:auto"
@@ -67,7 +67,8 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \
 # Warmup Options (set ENABLE_JVM_WARMUP=true to run warmup):
 #   See docs/JVM_WARMUP.md for details
 ENTRYPOINT ["sh", "-c", \
-    "java ${JAVA_GC_OPTS:--XX:+UseG1GC -XX:+UseStringDeduplication -XX:+AlwaysPreTouch} \
+    "java ${JAVA_OPTS:-} \
+    ${JAVA_GC_OPTS:--XX:+UseG1GC -XX:+UseStringDeduplication -XX:+AlwaysPreTouch} \
     ${JAVA_CDS_OPTS:-} \
     ${JAVA_JFR_OPTS:-} \
     -XX:MaxRAMPercentage=75.0 \

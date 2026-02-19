@@ -61,12 +61,14 @@ public class VelocityService {
     private ValueCommands<String, Long> valueCommands;
     private String luaScript;
     private String luaScriptSha;
+    private String defaultThresholdStr;
     private RedisAPI redisAPI;
 
     @PostConstruct
     void init() {
         valueCommands = redisDataSource.value(Long.class);
         redisAPI = RedisAPI.api(redis);
+        defaultThresholdStr = String.valueOf(defaultThreshold);
 
         // Load Lua script
         try {
@@ -140,9 +142,9 @@ public class VelocityService {
                 ? velocityConfig.getThreshold()
                 : defaultThreshold;
 
-        String key = buildVelocityKey(transaction, velocityConfig);
         Object dimValue = getDimensionValue(transaction, dimension);
         String dimensionValueStr = dimValue != null ? String.valueOf(dimValue) : null;
+        String key = buildVelocityKeyDirect(dimension, dimensionValueStr);
 
         if (LOG.isDebugEnabled()) {
             LOG.debugf("Velocity check: key=%s, window=%ds, threshold=%d", key, windowSeconds, threshold);
@@ -210,22 +212,20 @@ public class VelocityService {
      * @return the Redis key for this velocity counter
      */
     public String buildVelocityKey(TransactionContext transaction, VelocityConfig config) {
-        StringBuilder key = new StringBuilder(VELOCITY_KEY_PREFIX);
-
-        // Add ruleset key prefix (from transaction context or config)
-        key.append("global:"); // Could be made configurable
-
-        // Add dimension
-        key.append(config.getDimension()).append(":");
-
-        // Get the value for the dimension from the transaction
         Object dimensionValue = getDimensionValue(transaction, config.getDimension());
+        String dimensionValueStr = dimensionValue != null ? String.valueOf(dimensionValue) : null;
+        return buildVelocityKeyDirect(config.getDimension(), dimensionValueStr);
+    }
+
+    private String buildVelocityKeyDirect(String dimension, String dimensionValue) {
+        StringBuilder key = new StringBuilder(VELOCITY_KEY_PREFIX);
+        key.append("global:");
+        key.append(dimension).append(":");
         if (dimensionValue != null) {
-            key.append(encodeKeyPart(String.valueOf(dimensionValue)));
+            key.append(encodeKeyPart(dimensionValue));
         } else {
             key.append("unknown");
         }
-
         return key.toString();
     }
 
@@ -263,7 +263,7 @@ public class VelocityService {
                     "1",                              // numkeys
                     key,                              // KEYS[1]
                     String.valueOf(windowSeconds),    // ARGV[1]
-                    String.valueOf(defaultThreshold)  // ARGV[2]
+                    defaultThresholdStr               // ARGV[2]
             ));
 
             if (response != null && response.size() >= 1) {
@@ -283,7 +283,7 @@ public class VelocityService {
                             "1",
                             key,
                             String.valueOf(windowSeconds),
-                            String.valueOf(defaultThreshold)
+                            defaultThresholdStr
                     ));
                     if (response != null && response.size() >= 1) {
                         return response.get(0).toLong();
@@ -411,13 +411,12 @@ public class VelocityService {
         if (value == null || value.isEmpty()) {
             return "empty";
         }
-        if (value.length() <= 64) {
-            if (!INVALID_KEY_CHARS.matcher(value).find()) {
-                return value;
-            }
+        String truncated = value.length() > 64 ? value.substring(0, 64) : value;
+        var matcher = INVALID_KEY_CHARS.matcher(truncated);
+        if (!matcher.find()) {
+            return truncated;
         }
-        return INVALID_KEY_CHARS.matcher(value).replaceAll("_")
-                .substring(0, Math.min(value.length(), 64));
+        return matcher.reset().replaceAll("_");
     }
 
     /**

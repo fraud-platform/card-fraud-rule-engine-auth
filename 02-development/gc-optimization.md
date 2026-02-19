@@ -61,7 +61,7 @@ JAVA_GC_OPTS="-XX:+UseG1GC -XX:+UseStringDeduplication"
 **Use when:**
 - Consistent P99 latency is critical
 - Heap size > 1GB (ZGC scales better)
-- Running Java 21+
+- Running Java 25+
 
 **Configuration:**
 ```bash
@@ -170,7 +170,7 @@ Based on similar workloads (10K TPS, 1GB heap):
 # Enable GC logging (add to JAVA_OPTS)
 -XX:+PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps
 
-# Or for Java 21+
+# Or for Java 25+
 -Xlog:gc*:file=/logs/gc.log:time,level,tags
 ```
 
@@ -216,7 +216,7 @@ Based on similar workloads (10K TPS, 1GB heap):
 
 **Cause:** Java version too old (< 17 for ZGC, < 21 for ZGenerational)
 
-**Solution:** Upgrade to Java 21+
+**Solution:** Upgrade to Java 25+
 
 ### High CPU with ZGC/Shenandoah
 
@@ -241,7 +241,7 @@ Based on similar workloads (10K TPS, 1GB heap):
 | **Large heap (> 2GB)** | ZGC |
 | **Limited CPU** | G1GC |
 | **Memory constrained (< 512MB)** | G1GC |
-| **Java 21+ available** | ZGC (recommended) |
+| **Java 25+ available** | ZGC (recommended) |
 | **Older Java version** | G1GC or Shenandoah |
 
 ---

@@ -12,6 +12,7 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -34,6 +35,8 @@ public class AuthEvaluator {
         if (LOG.isDebugEnabled()) {
             LOG.debugf("AUTH evaluation: %d rules to evaluate", rules.size());
         }
+
+        Map<String, Decision.VelocityResult> replayVelocityCache = context.replayMode() ? new HashMap<>() : null;
 
         for (Rule rule : rules) {
             if (!rule.isEnabled()) {
@@ -61,7 +64,7 @@ public class AuthEvaluator {
                 Decision.VelocityResult velocityResult;
                 if (context.replayMode()) {
                     velocityResult = velocityEvaluator.checkVelocityReadOnly(
-                            context.transaction(), rule, context.decision());
+                            context.transaction(), rule, context.decision(), replayVelocityCache);
                 } else {
                     velocityResult = velocityEvaluator.checkVelocity(
                             context.transaction(), rule, context.decision());

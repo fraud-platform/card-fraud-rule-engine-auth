@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Represents the decision result from evaluating a transaction.
@@ -82,8 +83,17 @@ public class Decision {
     private TimingBreakdown timingBreakdown;
 
     public Decision() {
-        this.decisionId = UUID.randomUUID().toString();
+        this.decisionId = fastUUID();
         this.timestamp = Instant.now();
+    }
+
+    private static String fastUUID() {
+        ThreadLocalRandom rng = ThreadLocalRandom.current();
+        long msb = rng.nextLong();
+        long lsb = rng.nextLong();
+        msb = (msb & 0xffffffffffff0fffL) | 0x0000000000004000L;
+        lsb = (lsb & 0x3fffffffffffffffL) | 0x8000000000000000L;
+        return new UUID(msb, lsb).toString();
     }
 
     public Decision(String transactionId, String evaluationType) {

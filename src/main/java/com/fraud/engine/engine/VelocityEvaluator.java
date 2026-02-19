@@ -9,6 +9,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
+import java.util.Map;
+
 @ApplicationScoped
 public class VelocityEvaluator {
 
@@ -33,19 +35,31 @@ public class VelocityEvaluator {
     public Decision.VelocityResult checkVelocityReadOnly(
             TransactionContext transaction,
             Rule rule,
-            Decision decision) {
+            Decision decision,
+            Map<String, Decision.VelocityResult> cache) {
         try {
             String key = velocityService.buildVelocityKey(transaction, rule.getVelocity());
+            String cacheKey = key + "|" + rule.getVelocity().getThreshold() + "|" + rule.getVelocity().getWindowSeconds();
+            if (cache != null) {
+                Decision.VelocityResult cached = cache.get(cacheKey);
+                if (cached != null) {
+                    return cached;
+                }
+            }
             long currentCount = velocityService.getCurrentCount(key);
             String dimensionValue = extractDimensionValue(transaction, rule.getVelocity().getDimension());
 
-            return new Decision.VelocityResult(
+            Decision.VelocityResult result = new Decision.VelocityResult(
                     rule.getVelocity().getDimension(),
                     dimensionValue,
                     currentCount,
                     rule.getVelocity().getThreshold(),
                     rule.getVelocity().getWindowSeconds()
             );
+            if (cache != null) {
+                cache.put(cacheKey, result);
+            }
+            return result;
         } catch (Exception e) {
             LOG.warnf(e, "Velocity read check failed for rule %s", rule.getId());
             markVelocityDegraded(decision, e);

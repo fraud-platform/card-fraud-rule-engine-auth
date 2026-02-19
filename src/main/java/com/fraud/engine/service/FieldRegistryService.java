@@ -165,7 +165,7 @@ public class FieldRegistryService {
             keyToId.clear();
             keyToId.putAll(newKeyToId);
 
-            LOG.infof("Field registry reloaded: version=%d, fields=%d, source=%d",
+            LOG.infof("Field registry reloaded: version=%d, fields=%d, source=%s",
                     newRegistry.getRegistryVersion(),
                     newById.size(),
                     newRegistry.getCreatedBy());

@@ -4,7 +4,7 @@ Complete step-by-step guide for capturing and analyzing JFR recordings during lo
 
 ## Prerequisites
 
-- Java 21 JDK with `jfr` and `jcmd` tools
+- Java 25 JDK with `jfr` and `jcmd` tools
 - Application JAR built: `target/card-fraud-rule-engine-1.0.0-SNAPSHOT-runner.jar`
 - Infrastructure running: Redis, MinIO, Kafka (optional for AUTH)
 - Load testing harness: `card-fraud-e2e-load-testing` repository

@@ -174,7 +174,7 @@ public Response evaluateAuth(ByteBuf bodyBuf) {  // Zero-copy!
 - ✅ AlwaysPreTouch - 5% improvement
 
 **Additional Options:**
-- **Shenandoah GC** (Java 21) - Similar to ZGC but better for smaller heaps
+- **Shenandoah GC** (Java 25) - Similar to ZGC but better for smaller heaps
 - **Increase TLAB sizes** - `-XX:TLABSize=512k`
 - **Reuse builders via ThreadLocal** - e.g., `ThreadLocal<StringBuilder>`
 

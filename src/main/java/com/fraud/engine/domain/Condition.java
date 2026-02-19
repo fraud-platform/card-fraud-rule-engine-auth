@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /**
  * Represents a condition that can be evaluated against a transaction.
@@ -35,6 +36,8 @@ public class Condition {
 
     @JsonProperty("values")
     private Object values;
+
+    private transient Pattern compiledPattern;
 
     public Condition() {
     }
@@ -247,8 +250,12 @@ public class Condition {
         if (list == null) {
             return false;
         }
-        return list.stream()
-                .anyMatch(item -> Objects.equals(contextValue, item));
+        for (Object item : list) {
+            if (Objects.equals(contextValue, item)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isBetween(Object contextValue) {
@@ -276,7 +283,7 @@ public class Condition {
             return false;
         }
         if (contextValue instanceof java.util.List<?> list) {
-            return list.stream().anyMatch(item -> Objects.equals(item, value));
+            return list.contains(value);
         }
         if (contextValue instanceof String stringValue) {
             return stringValue.contains(String.valueOf(value));
@@ -301,7 +308,10 @@ public class Condition {
     private boolean matchesRegex(Object contextValue) {
         if (contextValue instanceof String stringValue && value != null) {
             try {
-                return stringValue.matches(String.valueOf(value));
+                if (compiledPattern == null) {
+                    compiledPattern = Pattern.compile(String.valueOf(value));
+                }
+                return compiledPattern.matcher(stringValue).matches();
             } catch (Exception e) {
                 return false;
             }
