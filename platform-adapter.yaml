@@ -1,0 +1,43 @@
+service: rule-engine-auth
+version: "1.0"
+entrypoints:
+  service:
+    status:
+      command: [uv, run, platform-adapter, service, status]
+      destructive: false
+      timeout_seconds: 60
+      mode: [suite]
+      description: Check service status via health endpoint.
+    health:
+      command: [uv, run, platform-adapter, service, health]
+      destructive: false
+      timeout_seconds: 60
+      mode: [suite]
+      description: Check service health endpoint.
+    logs:
+      command: [uv, run, platform-adapter, service, logs]
+      destructive: false
+      timeout_seconds: 60
+      mode: [suite]
+      description: Return logs guidance for the service.
+  runtime:
+    verify:
+      command: [uv, run, platform-adapter, runtime, verify]
+      destructive: false
+      timeout_seconds: 60
+      mode: [suite]
+      description: Verify runtime and Redis dependency.
+  messaging:
+    verify:
+      command: [uv, run, platform-adapter, messaging, verify]
+      destructive: false
+      timeout_seconds: 30
+      mode: [suite]
+      description: Verify Kafka/Redpanda dependency.
+  storage:
+    verify:
+      command: [uv, run, platform-adapter, storage, verify]
+      destructive: false
+      timeout_seconds: 30
+      mode: [suite]
+      description: Verify MinIO dependency.

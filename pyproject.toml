@@ -25,6 +25,7 @@ dev = [
 
 [project.scripts]
 # Infrastructure
+platform-adapter = "cli.platform_adapter:main"
 infra-local-up = "cli.redis_local:up"
 infra-local-down = "cli.redis_local:down"
 redis-local-up = "cli.redis_local:redis_up"
