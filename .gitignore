@@ -235,3 +235,4 @@ docs/04-testing/PROFILING-RESULTS-*.md
 04-testing/*_failures.csv
 04-testing/*-container-stats-*.log
 
+.precommit-home/

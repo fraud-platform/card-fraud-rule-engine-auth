@@ -13,6 +13,7 @@ This is the canonical instruction file for all coding agents working in `card-fr
 - Secrets: Doppler-only workflows. Do not create or commit `.env` files.
 - Commands: use repository wrappers from `pyproject.toml` or `package.json`; avoid ad-hoc commands.
 - Git hooks: run `git config core.hooksPath .githooks` after clone to enable pre-push guards.
+- Git workflow: work only on local `main`; do not create branches or linked worktrees. Push only `origin/main`. The pre-push guard covers Codex and Claude sessions; agents require `CARD_FRAUD_ALLOW_GIT_PUSH=1` for an explicitly requested push.
 - Docs publishing: keep only curated docs in `docs/01-setup` through `docs/07-reference`, plus `docs/README.md` and `docs/codemap.md`.
 - Docs naming: use lowercase kebab-case for docs files. Exceptions: `README.md`, `codemap.md`, and generated contract files.
 - Never commit docs/planning artifacts named `todo`, `status`, `archive`, or session notes.
@@ -96,6 +97,7 @@ uv run doppler-local
 
 ### Gateway Auth
 - Authentication is enforced at API Gateway; rule engine does not validate tokens on-box.
+- Do not add password-realm logins or role-user credentials to this service. Auth0 setup helpers use M2M client credentials, and the load harness sends no per-request token.
 
 ### Java and E2E tests
 - `uv run test-unit`
@@ -121,6 +123,7 @@ Primary responsibilities:
 - Ruleset loading/hot reload from MinIO/S3
 - Ruleset namespace is fixed to `CARD_AUTH`
 - Decision path: returns immediately after evaluation and enqueues for async durability; background writer persists to Redis Streams, publishes to Redpanda/Kafka with ack
+- AUTH evaluation (`evaluateAuth`) runs on virtual threads (`@RunOnVirtualThread`), so blocking Redis velocity calls park the virtual thread instead of consuming the bounded worker pool
 
 Core dependencies:
 - Redis 8.x
@@ -224,8 +227,12 @@ doppler run --config local -- \
 
 **Load test configuration (`%load-test` profile):**
 - `app.load-shedding.enabled: false` - Measure true capacity
+- `app.auth.async-durability.enabled: false` - Disable AUTH async durability side-effects
+- `app.outbox.worker.enabled: false` - Disable the MONITORING outbox worker for AUTH-only perf runs
+- `app.outbox.auth-publisher.enabled: false` - Disable the AUTH outbox publisher
 - `quarkus.log.level: WARN` - Suppress hot-path logging
-- `app.outbox.redis-timeout-seconds: 5` - Bounded Redis timeouts
+- `app.evaluation.timing-sample-every-n: 100` - Sample the detailed TimingBreakdown on ~1 of every 100 AUTH requests
+- `quarkus.redis.max-waiting-handlers: 500` - Raised from the base 100: with load shedding off and AUTH evaluation on virtual threads, concurrent blocking Redis calls are no longer capped by the worker pool and can exceed the base waiting-handler queue
 
 For split-service end-to-end load testing via Docker (recommended for AUTH+MONITORING flow), use:
 
@@ -237,4 +244,3 @@ cd ../card-fraud-e2e-load-testing
 uv run lt-rule-engine --users=50 --spawn-rate=10 --run-time=2m --scenario baseline --headless
 ```
 Last updated: 2026-02-13
-

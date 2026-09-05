@@ -46,6 +46,8 @@ public class EngineMetrics {
     private final AtomicLong outboxPendingTotal = new AtomicLong();
     private final AtomicLong outboxPendingOldestIdleMs = new AtomicLong();
 
+    private final LatencyHistogram authLatencyHistogram = new LatencyHistogram();
+
     public void incrementFailOpen() {
         failOpenTotal.incrementAndGet();
     }
@@ -137,6 +139,24 @@ public class EngineMetrics {
     public void setOutboxPendingSummary(long totalPending, long oldestIdleMs) {
         outboxPendingTotal.set(totalPending);
         outboxPendingOldestIdleMs.set(oldestIdleMs);
+    }
+
+    /**
+     * Records one AUTH server-side latency sample.
+     *
+     * @param nanos elapsed nanoseconds for the full {@code POST /v1/evaluate/auth} handling
+     *              (success, fail-open, and error paths must all record exactly once).
+     */
+    public void recordAuthLatency(long nanos) {
+        authLatencyHistogram.record(nanos);
+    }
+
+    /**
+     * Snapshot of the AUTH latency histogram, suitable for direct JSON exposure via
+     * {@code GET /v1/manage/metrics}.
+     */
+    public LatencyHistogram.Snapshot authLatencySnapshot() {
+        return authLatencyHistogram.snapshot();
     }
 
     public Map<String, Long> snapshot() {

@@ -67,6 +67,10 @@ uv run snyk-test
 Doppler is mandatory for runtime/test commands.
 Authentication and authorization are enforced at API Gateway.
 Rule engine no longer validates tokens in-process.
+This service does not perform human/password-realm Auth0 logins; any service
+token used by setup or upstream load tooling is an M2M client-credentials
+token. The development `Local Test Client` belongs to the portal and
+rule-management role-test paths only.
 
 Use:
 - `uv run doppler-local`

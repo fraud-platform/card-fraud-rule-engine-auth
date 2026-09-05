@@ -96,9 +96,7 @@ def main() -> int:
                     args.action,
                     "ok",
                     "Use docker compose logs for rule-engine-auth logs",
-                    details=[
-                        "docker compose -f docker-compose.yml -f docker-compose.apps.yml logs rule-engine-auth"
-                    ],
+                    details=["docker compose -f docker-compose.yml -f docker-compose.apps.yml logs rule-engine-auth"],
                     started_at=started_at,
                     completed_at=completed_at,
                 )

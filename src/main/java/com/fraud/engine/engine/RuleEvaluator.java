@@ -52,6 +52,28 @@ public class RuleEvaluator {
     }
 
     public Decision evaluate(TransactionContext transaction, Ruleset ruleset, boolean replayMode) {
+        // Skip the config-driven sample roll entirely when replayMode already forces detailed
+        // timing - there's no point spending a ThreadLocalRandom call on the non-hot replay path.
+        // A null evaluationConfig (e.g. this class constructed directly, outside CDI) disables
+        // detailed timing (breakdown stays null) rather than throwing - intentional.
+        boolean sampled = !replayMode
+                && evaluationConfig != null
+                && evaluationConfig.shouldSampleDetailedTiming();
+        return evaluate(transaction, ruleset, replayMode, sampled);
+    }
+
+    /**
+     * Evaluates a transaction against a ruleset.
+     *
+     * @param transaction            the transaction to evaluate
+     * @param ruleset                the compiled ruleset to evaluate against
+     * @param replayMode             true for replay/simulation flows; always forces detailed timing
+     * @param detailedTimingSampled  the caller's pre-decided (once per request, not re-rolled here)
+     *                               timing-sample outcome; ORed with {@code replayMode} and debug
+     *                               capture to produce the final detailed-timing decision for this call
+     */
+    public Decision evaluate(TransactionContext transaction, Ruleset ruleset, boolean replayMode,
+                              boolean detailedTimingSampled) {
         long startNanos = System.nanoTime();
 
         Decision decision = createDecision(transaction, ruleset, replayMode);
@@ -59,11 +81,20 @@ public class RuleEvaluator {
         decision.setRulesetVersion(ruleset.getVersion());
         decision.setRulesetId(ruleset.getRulesetId());
 
-        // Initialize timing breakdown
-        com.fraud.engine.domain.TimingBreakdown breakdown = new com.fraud.engine.domain.TimingBreakdown();
-        decision.setTimingBreakdown(breakdown);
+        boolean debugCapture = shouldCaptureDebug();
+        // Detailed per-phase TimingBreakdown is a sampled diagnostic, not a per-request tax:
+        // replay/simulation and debug-captured requests always get it; everything else follows
+        // the (already-decided-once) sample outcome passed in by the caller.
+        boolean detailedTiming = replayMode || debugCapture || detailedTimingSampled;
 
-        DebugInfo.Builder debugBuilder = shouldCaptureDebug()
+        // Initialize timing breakdown only when this request is sampled for detailed timing.
+        com.fraud.engine.domain.TimingBreakdown breakdown = null;
+        if (detailedTiming) {
+            breakdown = new com.fraud.engine.domain.TimingBreakdown();
+            decision.setTimingBreakdown(breakdown);
+        }
+
+        DebugInfo.Builder debugBuilder = debugCapture
                 ? createDebugBuilder(ruleset.getKey(), "v" + ruleset.getVersion())
                 : null;
 
@@ -76,25 +107,27 @@ public class RuleEvaluator {
                 decision.setTransactionContext(evalContext);
             }
 
-            // Measure scope traversal (ADR-0015)
-            long scopeStart = System.nanoTime();
+            // Measure scope traversal (ADR-0015) - only when sampled for detailed timing.
+            long scopeStart = detailedTiming ? System.nanoTime() : 0L;
             List<Rule> rulesToEvaluate = ruleset.getApplicableRules(
                     transaction.getCardNetwork(),
                     transaction.getCardBin(),
                     transaction.getMerchantCategoryCode(),
                     transaction.getCardLogo()
             );
-            long scopeEnd = System.nanoTime();
-            breakdown.setScopeTraversalTimeMs((scopeEnd - scopeStart) / 1_000_000.0);
+            if (detailedTiming) {
+                long scopeEnd = System.nanoTime();
+                breakdown.setScopeTraversalTimeMs((scopeEnd - scopeStart) / 1_000_000.0);
+            }
 
             if (rulesToEvaluate.isEmpty()) {
                 LOG.warnf("No rules to evaluate for ruleset: %s", ruleset.getFullKey());
                 decision.setDecision(Decision.DECISION_APPROVE);
-                return finalizeDecision(decision, startNanos, debugBuilder);
+                return finalizeDecision(decision, startNanos, debugBuilder, detailedTiming);
             }
 
-            // Measure context creation
-            long contextStart = System.nanoTime();
+            // Measure context creation - only when sampled for detailed timing.
+            long contextStart = detailedTiming ? System.nanoTime() : 0L;
             EvaluationContext context = EvaluationContext.create(
                     transaction,
                     ruleset,
@@ -106,28 +139,34 @@ public class RuleEvaluator {
                     rulesToEvaluate,
                     evalContext
             );
-            long contextEnd = System.nanoTime();
-            breakdown.setContextCreationTimeMs((contextEnd - contextStart) / 1_000_000.0);
+            if (detailedTiming) {
+                long contextEnd = System.nanoTime();
+                breakdown.setContextCreationTimeMs((contextEnd - contextStart) / 1_000_000.0);
+            }
 
-            // Measure dispatch evaluation
-            long dispatchStart = System.nanoTime();
+            // Measure dispatch evaluation - only when sampled for detailed timing.
+            long dispatchStart = detailedTiming ? System.nanoTime() : 0L;
             dispatchEvaluation(context);
-            long dispatchEnd = System.nanoTime();
-            breakdown.setDispatchEvaluationTimeMs((dispatchEnd - dispatchStart) / 1_000_000.0);
+            if (detailedTiming) {
+                long dispatchEnd = System.nanoTime();
+                breakdown.setDispatchEvaluationTimeMs((dispatchEnd - dispatchStart) / 1_000_000.0);
+            }
 
         } catch (Exception e) {
             LOG.errorf(e, "Error during rule evaluation");
             handleEvaluationError(decision, transaction, e);
         }
 
-        // Measure finalization
-        long finalizeStart = System.nanoTime();
-        Decision finalDecision = finalizeDecision(decision, startNanos, debugBuilder);
-        long finalizeEnd = System.nanoTime();
+        // Measure finalization - only when sampled for detailed timing.
+        long finalizeStart = detailedTiming ? System.nanoTime() : 0L;
+        Decision finalDecision = finalizeDecision(decision, startNanos, debugBuilder, detailedTiming);
 
         // Update timing breakdown with finalization time
-        if (finalDecision.getTimingBreakdown() != null) {
-            finalDecision.getTimingBreakdown().setDecisionFinalizationTimeMs((finalizeEnd - finalizeStart) / 1_000_000.0);
+        if (detailedTiming) {
+            long finalizeEnd = System.nanoTime();
+            if (finalDecision.getTimingBreakdown() != null) {
+                finalDecision.getTimingBreakdown().setDecisionFinalizationTimeMs((finalizeEnd - finalizeStart) / 1_000_000.0);
+            }
         }
 
         return finalDecision;
@@ -157,7 +196,8 @@ public class RuleEvaluator {
         authEvaluator.evaluate(context);
     }
 
-    private Decision finalizeDecision(Decision decision, long startTimeNanos, DebugInfo.Builder debugBuilder) {
+    private Decision finalizeDecision(Decision decision, long startTimeNanos, DebugInfo.Builder debugBuilder,
+                                       boolean detailedTiming) {
         long processingTimeMs = (System.nanoTime() - startTimeNanos) / 1_000_000;
         decision.setProcessingTimeMs(processingTimeMs);
 
@@ -170,13 +210,14 @@ public class RuleEvaluator {
         );
         decision.setEngineMetadata(engineMetadata);
 
-        // Preserve existing timing breakdown and update total
+        // Preserve existing timing breakdown and update total. Only create one here if this
+        // request was sampled for detailed timing - otherwise leave it null (Task 4).
         TimingBreakdown timingBreakdown = decision.getTimingBreakdown();
-        if (timingBreakdown == null) {
+        if (timingBreakdown != null) {
+            timingBreakdown.setTotalProcessingTimeMs(processingTimeMs);
+        } else if (detailedTiming) {
             timingBreakdown = new TimingBreakdown(processingTimeMs);
             decision.setTimingBreakdown(timingBreakdown);
-        } else {
-            timingBreakdown.setTotalProcessingTimeMs(processingTimeMs);
         }
 
         if (debugBuilder != null) {

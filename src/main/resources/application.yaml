@@ -193,24 +193,8 @@ mp:
       startup:
         load-enabled: true  # Enable startup loading in production
         fail-fast: true
-
-"%load-test":
-  # Performance baseline profile.
-  # Goal: measure evaluation latency without durability/publish side-effects.
-  quarkus:
-    log:
-      level: WARN
-  app:
-    load-shedding:
-      enabled: false
-    auth:
-      async-durability:
-        enabled: false
-    outbox:
-      worker:
-        enabled: false
-      auth-publisher:
-        enabled: false
+    evaluation:
+      timing-sample-every-n: ${TIMING_SAMPLE_EVERY_N:100}  # Sample the detailed TimingBreakdown on ~1 of every 100 AUTH requests
 
 "%test":
   quarkus:
@@ -246,8 +230,9 @@ mp:
     outbox:
       mode: in-memory
 
-# Load Test Profile
 "%load-test":
+  # Performance baseline profile.
+  # Goal: measure evaluation latency without durability/publish side-effects.
   quarkus:
     log:
       level: WARN
@@ -256,16 +241,30 @@ mp:
           level: WARN  # Suppress hot-path logging for throughput
     swagger-ui:
       always-include: false
+    redis:
+      # AUTH evaluation runs on virtual threads and load shedding is disabled here, so
+      # concurrent blocking Redis calls are no longer capped by the bounded worker pool
+      # and can exceed the base 100 waiting-handler queue. Overflow would trip the
+      # circuit-breaker fail-open path and corrupt latency measurements, so raise headroom
+      # for load-test runs only.
+      max-waiting-handlers: ${REDIS_MAX_WAITING_HANDLERS:500}
   app:
     load-shedding:
       enabled: false  # Disable load shedding for load tests to measure true capacity
+    auth:
+      async-durability:
+        enabled: false
     ruleset:
       startup:
         load-enabled: false  # Disable startup loading for load tests
         fail-fast: false
+    evaluation:
+      timing-sample-every-n: ${TIMING_SAMPLE_EVERY_N:100}  # Sample the detailed TimingBreakdown on ~1 of every 100 AUTH requests
     outbox:
       worker:
         enabled: false  # Disable monitoring worker for AUTH-only perf runs
+      auth-publisher:
+        enabled: false
   mp:
     messaging:
       outgoing:
@@ -275,7 +274,6 @@ mp:
           bootstrap.servers: localhost:9092
           key.serializer: org.apache.kafka.common.serialization.StringSerializer
           value.serializer: org.apache.kafka.common.serialization.StringSerializer
-          # Producer optimization (mirror durable settings)
           enable.idempotence: true
           acks: all
           max.in.flight.requests.per.connection: 5

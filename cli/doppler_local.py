@@ -40,4 +40,5 @@ def test_prod():
 def verify_secrets():
     """Verify Doppler secrets are accessible for local config."""
     from cli._doppler import _DOPPLER_PROJECT
+
     run(["doppler", "secrets", "--project", _DOPPLER_PROJECT, "--config=local", "--only-names"])

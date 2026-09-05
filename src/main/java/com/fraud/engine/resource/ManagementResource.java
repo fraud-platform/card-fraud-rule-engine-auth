@@ -269,6 +269,9 @@ public class ManagementResource {
         // Engine counters
         metrics.engineCounters = engineMetrics.snapshot();
 
+        // AUTH server-side latency histogram
+        metrics.authLatency = engineMetrics.authLatencySnapshot();
+
         return Response.ok(metrics).build();
     }
 }

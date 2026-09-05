@@ -1,6 +1,9 @@
 # Card Fraud Rule Engine Documentation
 
 Quarkus runtime for fraud decision evaluation and compiled ruleset execution.
+Auth0 boundary: authentication is enforced upstream at the API gateway. This
+service does not use role-user/password-realm logins or the development Local
+Test Client.
 
 ## Quick Start
 

@@ -1,5 +1,6 @@
 package com.fraud.engine.resource.dto;
 
+import com.fraud.engine.util.LatencyHistogram;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 import java.util.Map;
@@ -51,6 +52,19 @@ public class MetricsResponse {
 
     @Schema(description = "Engine observability counters")
     public Map<String, Long> engineCounters;
+
+    // ========== AUTH Server-Side Latency Histogram ==========
+
+    @Schema(description = "AUTH server-side latency histogram (POST /v1/evaluate/auth), in milliseconds")
+    public LatencyHistogram.Snapshot authLatency;
+
+    public LatencyHistogram.Snapshot getAuthLatency() {
+        return authLatency;
+    }
+
+    public void setAuthLatency(LatencyHistogram.Snapshot authLatency) {
+        this.authLatency = authLatency;
+    }
 
     public Map<String, Long> getEngineCounters() {
         return engineCounters;

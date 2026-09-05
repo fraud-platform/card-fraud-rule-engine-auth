@@ -27,8 +27,10 @@ _DOPPLER_PROJECT = "card-fraud-rule-engine"
 
 def _doppler_prefix(config: str = "local") -> list[str]:
     return [
-        "doppler", "run",
-        "--project", _DOPPLER_PROJECT,
+        "doppler",
+        "run",
+        "--project",
+        _DOPPLER_PROJECT,
         f"--config={config}",
         "--",
     ]
@@ -45,6 +47,7 @@ def _check_redis() -> bool:
     """Check if Redis is reachable."""
     try:
         import socket
+
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(2)
         sock.connect(("localhost", 6379))
@@ -58,6 +61,7 @@ def _check_server(base_url: str = "http://localhost:8081") -> bool:
     """Check if the fraud engine server is running."""
     try:
         import urllib.request
+
         urllib.request.urlopen(f"{base_url}/health/ready", timeout=3)
         return True
     except Exception:
@@ -85,6 +89,7 @@ def _require_server(base_url: str = "http://localhost:8081"):
 # ============================================================
 # Java/Maven test commands
 # ============================================================
+
 
 def test_unit() -> None:
     """Run unit-profile tests with Doppler secrets (needs Redis)."""
@@ -149,6 +154,7 @@ def test_coverage() -> None:
 # E2E test commands (Python pytest)
 # ============================================================
 
+
 def test_e2e() -> None:
     """Run E2E tests with JWT auth against running server.
 
@@ -163,7 +169,12 @@ def test_e2e() -> None:
     print(f"Target: {base_url}")
 
     cmd = _doppler_prefix() + [
-        sys.executable, "-m", "pytest", "e2e/", "-v", "--tb=short",
+        sys.executable,
+        "-m",
+        "pytest",
+        "e2e/",
+        "-v",
+        "--tb=short",
     ]
     env = os.environ.copy()
     env["FRAUD_ENGINE_BASE_URL"] = base_url
@@ -199,6 +210,7 @@ def test_e2e_no_auth() -> None:
 # Load test commands
 # ============================================================
 
+
 def test_load() -> None:
     """Start load test server with JWT enabled, then run Locust.
 
@@ -214,17 +226,20 @@ def test_load() -> None:
     print("    uv run doppler-load-test")
     print()
     print("  Step 3: Run Locust (with Doppler for Auth0 credentials)")
-    print("    doppler run --project card-fraud-rule-engine --config=local -- "
-          "locust -f load-testing/locustfile.py --host=http://localhost:8081")
+    print(
+        "    doppler run --project card-fraud-rule-engine --config=local -- "
+        "locust -f load-testing/locustfile.py --host=http://localhost:8081"
+    )
     print()
     print("  Or headless mode:")
-    print("    doppler run --project card-fraud-rule-engine --config=local -- "
-          "locust -f load-testing/locustfile.py --host=http://localhost:8081 "
-          "--headless -u 50 -r 5 --run-time=2m")
+    print(
+        "    doppler run --project card-fraud-rule-engine --config=local -- "
+        "locust -f load-testing/locustfile.py --host=http://localhost:8081 "
+        "--headless -u 50 -r 5 --run-time=2m"
+    )
     print()
     print("  Or Docker Compose (all-in-one):")
-    print("    doppler run --project card-fraud-rule-engine --config=local -- "
-          "docker compose --profile load-testing up")
+    print("    doppler run --project card-fraud-rule-engine --config=local -- docker compose --profile load-testing up")
 
 
 def test_load_no_auth() -> None:
@@ -241,9 +256,10 @@ def test_load_no_auth() -> None:
     print("    uv run doppler-local")
     print()
     print("  Step 3: Run Locust with NO_AUTH=true")
-    print("    NO_AUTH=true locust -f load-testing/locustfile.py "
-          "--host=http://localhost:8081")
+    print("    NO_AUTH=true locust -f load-testing/locustfile.py --host=http://localhost:8081")
     print()
     print("  Or headless:")
-    print("    NO_AUTH=true locust -f load-testing/locustfile.py "
-          "--host=http://localhost:8081 --headless -u 50 -r 5 --run-time=2m")
+    print(
+        "    NO_AUTH=true locust -f load-testing/locustfile.py "
+        "--host=http://localhost:8081 --headless -u 50 -r 5 --run-time=2m"
+    )

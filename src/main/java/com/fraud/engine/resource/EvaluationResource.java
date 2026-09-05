@@ -1,5 +1,6 @@
 package com.fraud.engine.resource;
 
+import com.fraud.engine.config.EvaluationConfig;
 import com.fraud.engine.domain.Decision;
 import com.fraud.engine.domain.Ruleset;
 import com.fraud.engine.domain.TransactionContext;
@@ -11,6 +12,7 @@ import com.fraud.engine.ruleset.RulesetRegistry;
 import com.fraud.engine.resource.dto.*;
 import com.fraud.engine.util.EngineMetrics;
 import com.fraud.engine.util.RulesetKeyResolver;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -52,6 +54,9 @@ public class EvaluationResource {
     @Inject
     EngineMetrics engineMetrics;
 
+    @Inject
+    EvaluationConfig evaluationConfig;
+
     @POST
     @Path("/auth")
     @Operation(
@@ -66,6 +71,12 @@ public class EvaluationResource {
             ),
             @APIResponse(responseCode = "500", description = "Internal server error")
     })
+    // Runs on a virtual thread instead of the bounded worker pool: under concurrent load, the
+    // blocking Redis velocity round-trip (evalshaAndAwait) would otherwise hold a pooled worker
+    // thread for the whole request, causing requests to queue for the pool. On a virtual thread,
+    // that blocking call parks the (cheap, unbounded) virtual thread instead, removing the pool
+    // as a bottleneck while keeping the simple synchronous code.
+    @RunOnVirtualThread
     public Response evaluateAuth(
             @RequestBody(
                     description = "Transaction to evaluate",
@@ -74,11 +85,18 @@ public class EvaluationResource {
             )
             TransactionContext transaction) {
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debugf("AUTH evaluation request: transactionId=%s", transaction.getTransactionId());
-        }
+        long authStartNanos = System.nanoTime();
+        try {
+            if (LOG.isDebugEnabled()) {
+                LOG.debugf("AUTH evaluation request: transactionId=%s", transaction.getTransactionId());
+            }
 
-        return evaluateTransaction(transaction, RuleEvaluator.EVAL_AUTH);
+            return evaluateTransaction(transaction, RuleEvaluator.EVAL_AUTH);
+        } finally {
+            // Records exactly once per request, covering success, fail-open, and error paths,
+            // since evaluateTransaction() itself never throws (it catches internally).
+            engineMetrics.recordAuthLatency(System.nanoTime() - authStartNanos);
+        }
     }
 
     private Response evaluateTransaction(TransactionContext transaction, String evaluationType) {
@@ -86,35 +104,56 @@ public class EvaluationResource {
             String rulesetKey = rulesetKeyResolver.resolve(transaction, evaluationType);
 
             String country = transaction != null ? transaction.getCountryCode() : null;
-            long lookupStart = System.nanoTime();
+
+            // Decided ONCE per request (not re-rolled) and passed down to RuleEvaluator so both
+            // this method's own lookup/persist instrumentation and the engine's detailed
+            // TimingBreakdown agree on whether this request is sampled (Task 4).
+            //
+            // Also folds in the non-probabilistic "debug enabled at all" flag (NOT the
+            // per-request shouldCaptureDebug() roll, which lives in RuleEvaluator and would
+            // desync from this decision if re-rolled here): the brief requires debug capture to
+            // always force full timing, and RuleEvaluator ORs its own debugCapture roll into the
+            // final decision regardless of what we pass it. Folding the plain enabled flag in
+            // here (rather than leaving it to RuleEvaluator alone) keeps this resource's own
+            // lookup/rule-eval timing in sync with the breakdown RuleEvaluator ends up creating.
+            // This slightly over-records lookup/eval timing when debug.sampleRate < 100 while
+            // debug mode is on - acceptable for a diagnostic-only setting.
+            boolean detailedTimingSampled = evaluationConfig.shouldSampleDetailedTiming()
+                    || evaluationConfig.isDebugEnabled();
+
+            long lookupStart = detailedTimingSampled ? System.nanoTime() : 0L;
             Ruleset ruleset = rulesetRegistry.getRulesetWithFallback(country, rulesetKey);
-            long lookupEnd = System.nanoTime();
-            double lookupTimeMs = (lookupEnd - lookupStart) / 1_000_000.0;
+            Double lookupTimeMs = null;
+            if (detailedTimingSampled) {
+                long lookupEnd = System.nanoTime();
+                lookupTimeMs = (lookupEnd - lookupStart) / 1_000_000.0;
+            }
 
             if (ruleset != null) {
                 if (LOG.isDebugEnabled()) {
                     LOG.debugf("Using ruleset: %s/v%d", rulesetKey, ruleset.getVersion());
                 }
 
-                Decision decision = ruleEvaluator.evaluate(transaction, ruleset);
+                Decision decision = ruleEvaluator.evaluate(transaction, ruleset, false, detailedTimingSampled);
 
                 com.fraud.engine.domain.TimingBreakdown breakdown = decision.getTimingBreakdown();
-                if (breakdown == null) {
-                    breakdown = new com.fraud.engine.domain.TimingBreakdown();
-                    decision.setTimingBreakdown(breakdown);
-                }
-                breakdown.setRulesetLookupTimeMs(lookupTimeMs);
-                breakdown.setRuleEvaluationTimeMs(decision.getProcessingTimeMs() - lookupTimeMs);
+                if (breakdown != null) {
+                    if (lookupTimeMs != null) {
+                        breakdown.setRulesetLookupTimeMs(lookupTimeMs);
+                        breakdown.setRuleEvaluationTimeMs(decision.getProcessingTimeMs() - lookupTimeMs);
+                    }
 
-                if (decision.getVelocityResults() != null) {
-                    breakdown.setVelocityCheckCount(decision.getVelocityResults().size());
-                }
+                    if (decision.getVelocityResults() != null) {
+                        breakdown.setVelocityCheckCount(decision.getVelocityResults().size());
+                    }
 
-                long persistStart = System.nanoTime();
-                persistDecisionOutcome(transaction, decision);
-                long persistEnd = System.nanoTime();
-                double persistTimeMs = (persistEnd - persistStart) / 1_000_000.0;
-                breakdown.setRedisOutboxTimeMs(persistTimeMs);
+                    long persistStart = System.nanoTime();
+                    persistDecisionOutcome(transaction, decision);
+                    long persistEnd = System.nanoTime();
+                    breakdown.setRedisOutboxTimeMs((persistEnd - persistStart) / 1_000_000.0);
+                } else {
+                    persistDecisionOutcome(transaction, decision);
+                }
 
                 return Response.ok(SlimAuthResult.from(decision)).build();
             }
@@ -123,9 +162,11 @@ public class EvaluationResource {
 
             Decision decision = buildErrorDecision(transaction, rulesetKey);
 
-            com.fraud.engine.domain.TimingBreakdown breakdown = new com.fraud.engine.domain.TimingBreakdown();
-            breakdown.setRulesetLookupTimeMs(lookupTimeMs);
-            decision.setTimingBreakdown(breakdown);
+            if (lookupTimeMs != null) {
+                com.fraud.engine.domain.TimingBreakdown breakdown = new com.fraud.engine.domain.TimingBreakdown();
+                breakdown.setRulesetLookupTimeMs(lookupTimeMs);
+                decision.setTimingBreakdown(breakdown);
+            }
 
             persistDecisionOutcome(transaction, decision);
             return Response.ok(SlimAuthResult.from(decision)).build();
